@@ -51,7 +51,7 @@ def import_roster(filepath):
     df['rank'] = df['throws'] + df['experience'] + df['athleticism']
     product = df.columns[-3]
     df.drop(columns=['first_name', 'last_name', product], inplace=True)
-    names = df.pop('name')
+    names = df.pop('name').str.title()
     df.insert(0, 'name', names)
     return df
 
