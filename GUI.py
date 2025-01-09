@@ -1,6 +1,6 @@
 import tkinter as tk
 from tkinter import filedialog, ttk, messagebox
-import datahandler as dh
+import hatFunctions as hf
 
 
 # Main App Class
@@ -12,8 +12,8 @@ class AutoHat(tk.Tk):
         self.title('Auto Hat')
         self.geometry('500x250')
 
-        self.data_frame = DataFrame(self, self.show_checkin_frame)
-        self.data_frame.pack(padx=5, pady=5, fill='both', expand=True)
+        self.file_frame = FileFrame(self, self.show_checkin_frame)
+        self.file_frame.pack(padx=5, pady=5, fill='both', expand=True)
 
         self.checkin_frame = None
 
@@ -22,16 +22,15 @@ class AutoHat(tk.Tk):
 
     # Method to switch frames and load the check in frame
     def show_checkin_frame(self):
-        if self.data_frame.done:
+        if self.file_frame.done:
             self.geometry('500x500')
-            self.checkin_frame = CheckInFrame(self, self.data_frame.reg_df,
-                                              self.data_frame.means, self.data_frame.save_dir)
+            self.checkin_frame = CheckInFrame(self, self.file_frame.reg_df, self.file_frame.save_dir)
             self.checkin_frame.pack(padx=5, pady=5, fill='both', expand=True)
-            self.data_frame.pack_forget()
+            self.file_frame.pack_forget()
 
 
 # Class for frame which lets the user select the input file and save directory
-class DataFrame(ttk.Frame):
+class FileFrame(ttk.Frame):
     def __init__(self, parent, callback):
         super().__init__(parent)
         self.callback = callback
@@ -39,7 +38,6 @@ class DataFrame(ttk.Frame):
         self.file_path = ''
         self.save_dir = ''
         self.reg_df = None
-        self.means = None
         self.data_in_label = ttk.Label(self, text='Check In Sheet Filepath: ')
         self.data_in_path = ttk.Label(self, text='', padding=5)
         self.data_in_button = ttk.Button(self, text='Browse', command=self.get_filepath)
@@ -81,7 +79,7 @@ class DataFrame(ttk.Frame):
 
     # Callback function to main app class, switches frames and loads the check in frame
     def check_in(self):
-        self.reg_df, self.means = dh.launch_checkin(self.file_path)
+        self.reg_df = hf.launch_checkin(self.file_path)
         self.done = True
         self.callback()
 
@@ -89,10 +87,10 @@ class DataFrame(ttk.Frame):
 # Class for check in frame which lets the user mark attendance, choose the number of teams to create rosters for, and
 # generate excel spreadsheets which list the randomly shuffled teams
 class CheckInFrame(ttk.Frame):
-    def __init__(self, parent, reg_df, means, save_dir):
+    def __init__(self, parent, reg_df, save_dir):
         super().__init__(parent)
         self.reg_df = reg_df
-        self.means = means
+        self.means = None
         self.save_dir = save_dir
         self.labels = []
         self.check_buttons = []
@@ -174,8 +172,9 @@ class CheckInFrame(ttk.Frame):
             if not here.get():
                 self.reg_df.drop(index=index, inplace=True)
         self.reg_df = self.reg_df.reset_index(drop=True)
+        self.means = hf.calc_means(self.reg_df)
         try:
-            dh.generate_teams(self.reg_df, self.means, self.save_dir, self.num_teams.get())
+            hf.generate_teams(self.reg_df, self.means, self.save_dir, self.num_teams.get())
             messagebox.showinfo('hat empty', 'Teams spreadsheet created')
         except (IndexError, KeyError, ValueError):
             messagebox.showinfo('Error', 'Not enough players checked in')
