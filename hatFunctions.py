@@ -63,6 +63,7 @@ def launch_checkin(data_in_path):
     raw_data.reset_index(drop=True, inplace=True)
     return raw_data
 
+
 def calc_means(df_in):
     mean_throw = df_in['throws'].mean()
     mean_exp = df_in['experience'].mean()
@@ -97,9 +98,11 @@ def pop_random_player(roster, low_index, high_index):
     return player
 
 
-def generate_teams(raw_data, mean_vals, save_directory, num_teams):
+def generate_teams(raw_data, save_directory, num_teams):
     teams = []
     raw_data.sort_values(by=['rank', 'experience', 'athleticism'], ascending=False, inplace=True)
+
+    mean_vals = calc_means(raw_data)
 
     # Split the roster into rosters of men and women
     men = raw_data[raw_data['gender'] == 'male'].copy()
