@@ -90,11 +90,9 @@ class CheckInFrame(ttk.Frame):
     def __init__(self, parent, reg_df, save_dir):
         super().__init__(parent)
         self.reg_df = reg_df
-        self.means = None
         self.save_dir = save_dir
         self.labels = []
         self.check_buttons = []
-        self.num_players = 0
 
         self.num_teams_label = ttk.Label(self, text='Number of Teams: ')
         self.options = [2, 2, 3, 4]
@@ -104,7 +102,7 @@ class CheckInFrame(ttk.Frame):
 
         self.draw_teams_button = ttk.Button(self, text='Draw Teams', command=self.draw_teams)
 
-        self.num_players_label = ttk.Label(self, text=self.num_players)
+        self.num_players_label = ttk.Label(self, text=0)
         self.count_players = ttk.Button(self, text='Count Players', command=self.update_player_count)
 
         # Create a canvas to hold the contents of the frame
@@ -134,7 +132,7 @@ class CheckInFrame(ttk.Frame):
 
     # Pack the frame
     def create_layout(self):
-        for index, row in self.reg_df.iterrows():
+        for _, row in self.reg_df.iterrows():
             name = row['name']
 
             frame = ttk.Frame(self.canvas_frame)
@@ -158,11 +156,8 @@ class CheckInFrame(ttk.Frame):
 
     # Function to update the count of players that are checked in, which will display automatically
     def update_player_count(self):
-        self.num_players = 0
-        for here in self.check_buttons:
-            if here.get():
-                self.num_players += 1
-        self.num_players_label.config(text=self.num_players)
+        num_players = sum(1 for here in self.check_buttons if here.get())
+        self.num_players_label.config(text=num_players)
 
     # Function which discards all rostered players not present, then randomly shuffles teams based on the GUI inputs
     # and generates an excel sheet with the newly created teams
@@ -172,9 +167,8 @@ class CheckInFrame(ttk.Frame):
             if not here.get():
                 self.reg_df.drop(index=index, inplace=True)
         self.reg_df = self.reg_df.reset_index(drop=True)
-        self.means = hf.calc_means(self.reg_df)
         try:
-            hf.generate_teams(self.reg_df, self.means, self.save_dir, self.num_teams.get())
+            hf.generate_teams(self.reg_df, self.save_dir, self.num_teams.get())
             messagebox.showinfo('hat empty', 'Teams spreadsheet created')
         except (IndexError, KeyError, ValueError):
             messagebox.showinfo('Error', 'Not enough players checked in')
