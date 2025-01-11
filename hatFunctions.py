@@ -99,7 +99,7 @@ def pop_random_player(roster, low_index, high_index):
     return player
 
 # Add players one by one to build a dataframe of drop-in players. Only rank is enumerated,
-# all other scores are given a '-' to indicate that the value isn't known
+# all other scores are given a value of NaN to indicate that the value isn't known
 def add_drop_in(drop_in_df, name, gender, rank):
     drop_in_player = {'name': [name.title()], 'gender': [gender.lower()],
                       'throws': [np.nan], 'experience': [np.nan],
