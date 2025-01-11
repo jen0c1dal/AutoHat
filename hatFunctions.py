@@ -2,8 +2,8 @@ import datetime as dt
 import math
 import os
 import pandas as pd
+import numpy as np
 import random as rd
-import xlsxwriter
 
 
 def enumerate_throws(string_in):
@@ -85,6 +85,7 @@ def assign_players(mean_rank, roster, teams, num_teams, team_index: int = 0) -> 
             else:
                 player = pop_random_player(roster, 0, math.floor(roster.shape[0] / 2))
         teams[team_index] = pd.concat([teams[team_index], player], axis=1)
+
         team_index = (team_index + 1) % num_teams
     
     return team_index
@@ -97,18 +98,65 @@ def pop_random_player(roster, low_index, high_index):
     roster.reset_index(drop=True, inplace=True)
     return player
 
+# Add players one by one to build a dataframe of drop-in players. Only rank is enumerated,
+# all other scores are given a '-' to indicate that the value isn't known
+def add_drop_in(drop_in_df, name, gender, rank):
+    drop_in_player = {'name': [name.title()], 'gender': [gender.lower()],
+                      'throws': [np.nan], 'experience': [np.nan],
+                       'athleticism': [np.nan], 'rank': [int(rank)]}
+    if drop_in_df.empty:
+        drop_in_df = pd.DataFrame(drop_in_player)
+    else:
+        drop_in_df = pd.concat([drop_in_df, pd.DataFrame(drop_in_player)], axis=0)
+    return drop_in_df
 
-def generate_teams(raw_data, save_directory, num_teams):
+# Unlike rostered players, drop-in players are added from either the top or bottom of the ranking list based on
+# average team rank. No randomness is added as it is assumed that the drop-in players will be random week-to-week
+def assign_drop_ins(mean_rank, drop_ins, teams, num_teams, team_index) -> int:
+    while drop_ins.shape[0] > 0:
+        if drop_ins.shape[0] == 1:
+            player = drop_ins.iloc[0]
+            drop_ins.drop(index=drop_ins.index[0], inplace=True)
+            drop_ins.reset_index(drop=True, inplace=True)
+        else:
+            if teams[team_index].loc['rank'].mean() < mean_rank:
+                player = drop_ins.iloc[0]
+                drop_ins.drop(index=drop_ins.index[0], inplace=True)
+                drop_ins.reset_index(drop=True, inplace=True)
+            else:
+                player = drop_ins.iloc[-1]
+                drop_ins.drop(index=drop_ins.index[-1], inplace=True)
+        teams[team_index] = pd.concat([teams[team_index], player], axis=1)
+        team_index = (team_index + 1) % num_teams
+    
+    return team_index
+
+def generate_teams(raw_data, drop_ins, save_directory, num_teams):
     teams = []
     raw_data.sort_values(by=['rank', 'experience', 'athleticism'], ascending=False, inplace=True)
-
-    mean_vals = calc_means(raw_data)
+    if drop_ins.empty:
+        drop_ins_present = False
+        mean_vals = calc_means(raw_data)
+    else:
+        drop_ins_present = True
+        drop_ins.sort_values(by=['rank'], ascending=False, inplace=True)
+        mean_vals = calc_means(pd.concat([raw_data, drop_ins], axis=0))
+   
 
     # Split the roster into rosters of men and women
     men = raw_data[raw_data['gender'] == 'male'].copy()
     men.drop(['gender'], axis=1, inplace=True)
     women = raw_data[raw_data['gender'] == 'female'].copy()
     women.drop(['gender'], axis=1, inplace=True)
+
+    # Do the same for the drop-in players
+    if drop_ins_present:
+        drop_in_men = drop_ins[drop_ins['gender'] == 'male'].copy()
+        drop_in_men.drop(['gender'], axis=1, inplace=True)
+        drop_in_men.reset_index(drop=True, inplace=True)
+        drop_in_women = drop_ins[drop_ins['gender'] == 'female'].copy()
+        drop_in_women.drop(['gender'], axis=1, inplace=True)
+        drop_in_women.reset_index(drop=True, inplace=True)
 
     # Add a top-ranked player to each team from the men's roster
     for _ in range(num_teams):
@@ -123,8 +171,16 @@ def generate_teams(raw_data, save_directory, num_teams):
 
     # Add male players to the teams based on how team rankings compare to the average rank
     team_index = assign_players(mean_vals['rank'], men, teams, num_teams)
+    # Add male drop-in players to the teams based on how team rankings compare to the average rank
+    if drop_ins_present:
+        team_index = assign_drop_ins(mean_vals['rank'], drop_in_men, teams, num_teams, team_index)
+
     # Add female players to the teams based on how team rankings compare to the average rank
-    assign_players(mean_vals['rank'], women, teams, num_teams, team_index)
+    team_index = assign_players(mean_vals['rank'], women, teams, num_teams, team_index)
+    # Add female drop-in players to the teams based on how team rankings compare to the average rank
+    if drop_ins_present:
+        assign_drop_ins(mean_vals['rank'], drop_in_women, teams, num_teams, team_index)
+
 
     # Transpose the teams and add a row that averages all values to include in the output
     final_teams = []

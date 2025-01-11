@@ -1,5 +1,6 @@
 import tkinter as tk
 from tkinter import filedialog, ttk, messagebox
+import pandas as pd
 import hatFunctions as hf
 
 
@@ -91,6 +92,7 @@ class CheckInFrame(ttk.Frame):
         super().__init__(parent)
         self.reg_df = reg_df
         self.save_dir = save_dir
+        self.drop_in_df = pd.DataFrame()
         self.labels = []
         self.check_buttons = []
 
@@ -104,6 +106,8 @@ class CheckInFrame(ttk.Frame):
 
         self.num_players_label = ttk.Label(self, text=0)
         self.count_players = ttk.Button(self, text='Count Players', command=self.update_player_count)
+
+        self.drop_in_button = ttk.Button(self, text='Add Drop-in Player', command=self.drop_in)
 
         # Create a canvas to hold the contents of the frame
         self.canvas = tk.Canvas(self)
@@ -153,11 +157,26 @@ class CheckInFrame(ttk.Frame):
         self.draw_teams_button.pack(anchor=tk.SW, padx=10, pady=20)
         self.num_players_label.pack(anchor=tk.E, padx=10, pady=5)
         self.count_players.pack(anchor=tk.E, padx=10, pady=5)
+        self.drop_in_button.pack(anchor=tk.W, padx=10, pady=5)
 
     # Function to update the count of players that are checked in, which will display automatically
     def update_player_count(self):
         num_players = sum(1 for here in self.check_buttons if here.get())
+        num_players += self.drop_in_df.shape[0]
         self.num_players_label.config(text=num_players)
+
+    # Function which updates the drop-in player list. Can be called by the child frame "DropInFrame"
+    def update_drop_in_df(self, drop_in_df):
+        self.drop_in_df = drop_in_df.copy()
+
+    # Function which builds the drop-in frame to allow drop-in players to be added to the roster
+    def drop_in(self):
+        drop_in_window = tk.Toplevel(self)
+        drop_in_window.title('Add Drop-in Player')
+        drop_in_window.geometry('300x100')
+        drop_in_frame = DropInFrame(drop_in_window, self.drop_in_df)
+        drop_in_frame.pack()
+
 
     # Function which discards all rostered players not present, then randomly shuffles teams based on the GUI inputs
     # and generates an excel sheet with the newly created teams
@@ -168,8 +187,45 @@ class CheckInFrame(ttk.Frame):
                 self.reg_df.drop(index=index, inplace=True)
         self.reg_df = self.reg_df.reset_index(drop=True)
         try:
-            hf.generate_teams(self.reg_df, self.save_dir, self.num_teams.get())
+            hf.generate_teams(self.reg_df, self.drop_in_df, self.save_dir, self.num_teams.get())
             messagebox.showinfo('hat empty', 'Teams spreadsheet created')
         except (IndexError, KeyError, ValueError):
             messagebox.showinfo('Error', 'Not enough players checked in')
         self.reg_df = hold_df
+
+
+# Frame to allow a drop-in player to be manually added to the roster. Accessed from the Check-in frame
+class DropInFrame(ttk.Frame):
+    def __init__(self, master, drop_in_df):
+        super().__init__(master)
+        self.drop_in_df = drop_in_df
+        self.name = tk.StringVar()
+        self.gender = tk.StringVar()
+        self.rank = tk.StringVar()
+
+        self.name_label = ttk.Label(self, text="Player's full name")
+        self.name_entry = ttk.Entry(self, textvariable=self.name)
+
+        self.gender_label = ttk.Label(self, text='Gender (male/female)')
+        self.gender_entry = ttk.Entry(self, textvariable=self.gender)
+
+        self.rank_label = ttk.Label(self, text='Skill rank (out of 11)')
+        self.rank_entry = ttk.Entry(self, textvariable=self.rank)
+
+        self.add_button = ttk.Button(self, text='Add Player', command=self.add_player)
+
+        self.create_layout()
+
+    def create_layout(self):
+        self.name_label.grid(row=0, column=0)
+        self.name_entry.grid(row=0, column=1)
+        self.gender_label.grid(row=1, column=0)
+        self.gender_entry.grid(row=1, column=1)
+        self.rank_label.grid(row=2, column=0)
+        self.rank_entry.grid(row=2, column=1)
+        self.add_button.grid(row=3, column=1)
+
+    def add_player(self):
+        self.drop_in_df = hf.add_drop_in(self.drop_in_df, self.name.get(), self.gender.get(), self.rank.get())
+        self.master.master.update_drop_in_df(self.drop_in_df)
+        self.master.destroy()
