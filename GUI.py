@@ -207,8 +207,9 @@ class DropInFrame(ttk.Frame):
         self.name_label = ttk.Label(self, text="Player's full name")
         self.name_entry = ttk.Entry(self, textvariable=self.name)
 
-        self.gender_label = ttk.Label(self, text='Gender (male/female)')
-        self.gender_entry = ttk.Entry(self, textvariable=self.gender)
+        self.gender_label = ttk.Label(self, text='Gender')
+        self.male_rb = ttk.Radiobutton(self, text='Male', variable=self.gender, value='male')
+        self.female_rb = ttk.Radiobutton(self, text='Female', variable=self.gender, value='female')
 
         self.rank_label = ttk.Label(self, text='Skill rank (From 3 to 11)')
         self.rank_entry = ttk.Entry(self, textvariable=self.rank)
@@ -219,11 +220,12 @@ class DropInFrame(ttk.Frame):
 
     def create_layout(self):
         self.name_label.grid(row=0, column=0)
-        self.name_entry.grid(row=0, column=1)
+        self.name_entry.grid(row=0, column=1, columnspan=2)
         self.gender_label.grid(row=1, column=0)
-        self.gender_entry.grid(row=1, column=1)
+        self.male_rb.grid(row=1, column=1)
+        self.female_rb.grid(row=1, column=2)
         self.rank_label.grid(row=2, column=0)
-        self.rank_entry.grid(row=2, column=1)
+        self.rank_entry.grid(row=2, column=1, columnspan=2)
         self.add_button.grid(row=3, column=1)
 
     def add_player(self):
