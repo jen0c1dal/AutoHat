@@ -107,25 +107,20 @@ def add_drop_in(drop_in_df, name, gender, rank):
     if drop_in_df.empty:
         drop_in_df = pd.DataFrame(drop_in_player)
     else:
-        drop_in_df = pd.concat([drop_in_df, pd.DataFrame(drop_in_player)], axis=0)
+        drop_in_df = pd.concat([drop_in_df, pd.DataFrame(drop_in_player)], axis=0, ignore_index=True)
     return drop_in_df
 
 # Unlike rostered players, drop-in players are added from either the top or bottom of the ranking list based on
 # average team rank. No randomness is added as it is assumed that the drop-in players will be random week-to-week
 def assign_drop_ins(mean_rank, drop_ins, teams, num_teams, team_index) -> int:
     while drop_ins.shape[0] > 0:
-        if drop_ins.shape[0] == 1:
+        if teams[team_index].loc['rank'].mean() < mean_rank:
             player = drop_ins.iloc[0]
             drop_ins.drop(index=drop_ins.index[0], inplace=True)
             drop_ins.reset_index(drop=True, inplace=True)
         else:
-            if teams[team_index].loc['rank'].mean() < mean_rank:
-                player = drop_ins.iloc[0]
-                drop_ins.drop(index=drop_ins.index[0], inplace=True)
-                drop_ins.reset_index(drop=True, inplace=True)
-            else:
-                player = drop_ins.iloc[-1]
-                drop_ins.drop(index=drop_ins.index[-1], inplace=True)
+            player = drop_ins.iloc[-1]
+            drop_ins.drop(index=drop_ins.index[-1], inplace=True)
         teams[team_index] = pd.concat([teams[team_index], player], axis=1)
         team_index = (team_index + 1) % num_teams
     
@@ -141,7 +136,6 @@ def generate_teams(raw_data, drop_ins, save_directory, num_teams):
         drop_ins_present = True
         drop_ins.sort_values(by=['rank'], ascending=False, inplace=True)
         mean_vals = calc_means(pd.concat([raw_data, drop_ins], axis=0))
-   
 
     # Split the roster into rosters of men and women
     men = raw_data[raw_data['gender'] == 'male'].copy()
@@ -153,10 +147,8 @@ def generate_teams(raw_data, drop_ins, save_directory, num_teams):
     if drop_ins_present:
         drop_in_men = drop_ins[drop_ins['gender'] == 'male'].copy()
         drop_in_men.drop(['gender'], axis=1, inplace=True)
-        drop_in_men.reset_index(drop=True, inplace=True)
         drop_in_women = drop_ins[drop_ins['gender'] == 'female'].copy()
         drop_in_women.drop(['gender'], axis=1, inplace=True)
-        drop_in_women.reset_index(drop=True, inplace=True)
 
     # Add a top-ranked player to each team from the men's roster
     for _ in range(num_teams):
