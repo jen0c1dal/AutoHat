@@ -187,7 +187,8 @@ class CheckInFrame(ttk.Frame):
                 self.reg_df.drop(index=index, inplace=True)
         self.reg_df = self.reg_df.reset_index(drop=True)
         try:
-            hf.generate_teams(self.reg_df, self.drop_in_df, self.save_dir, self.num_teams.get())
+            full_roster_df = pd.DataFrame(pd.concat([self.reg_df, self.drop_in_df], axis=0, ignore_index=True))
+            hf.generate_teams(full_roster_df, self.save_dir, self.num_teams.get())
             messagebox.showinfo('hat empty', 'Teams spreadsheet created')
         except (IndexError, KeyError, ValueError):
             messagebox.showinfo('Error', 'Not enough players checked in')
