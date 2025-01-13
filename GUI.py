@@ -210,7 +210,7 @@ class DropInFrame(ttk.Frame):
         self.gender_label = ttk.Label(self, text='Gender (male/female)')
         self.gender_entry = ttk.Entry(self, textvariable=self.gender)
 
-        self.rank_label = ttk.Label(self, text='Skill rank (out of 11)')
+        self.rank_label = ttk.Label(self, text='Skill rank (From 3 to 11)')
         self.rank_entry = ttk.Entry(self, textvariable=self.rank)
 
         self.add_button = ttk.Button(self, text='Add Player', command=self.add_player)
