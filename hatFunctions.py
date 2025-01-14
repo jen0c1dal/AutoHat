@@ -2,8 +2,8 @@ import datetime as dt
 import math
 import os
 import pandas as pd
+import numpy as np
 import random as rd
-import xlsxwriter
 
 
 def enumerate_throws(string_in):
@@ -85,6 +85,7 @@ def assign_players(mean_rank, roster, teams, num_teams, team_index: int = 0) -> 
             else:
                 player = pop_random_player(roster, 0, math.floor(roster.shape[0] / 2))
         teams[team_index] = pd.concat([teams[team_index], player], axis=1)
+
         team_index = (team_index + 1) % num_teams
     
     return team_index
@@ -98,10 +99,22 @@ def pop_random_player(roster, low_index, high_index):
     return player
 
 
+# Add players one by one to build a dataframe of drop-in players. Only rank is enumerated,
+# all other scores are given a value of NaN to indicate that the value isn't known
+def add_drop_in(drop_in_df, name, gender, rank):
+    drop_in_player = {'name': [name.title()], 'gender': [gender],
+                      'throws': [np.nan], 'experience': [np.nan],
+                       'athleticism': [np.nan], 'rank': [int(rank)]}
+    if drop_in_df.empty:
+        drop_in_df = pd.DataFrame(drop_in_player)
+    else:
+        drop_in_df = pd.concat([drop_in_df, pd.DataFrame(drop_in_player)], axis=0, ignore_index=True)
+    return drop_in_df
+
+
 def generate_teams(raw_data, save_directory, num_teams):
     teams = []
     raw_data.sort_values(by=['rank', 'experience', 'athleticism'], ascending=False, inplace=True)
-
     mean_vals = calc_means(raw_data)
 
     # Split the roster into rosters of men and women
@@ -123,8 +136,9 @@ def generate_teams(raw_data, save_directory, num_teams):
 
     # Add male players to the teams based on how team rankings compare to the average rank
     team_index = assign_players(mean_vals['rank'], men, teams, num_teams)
+
     # Add female players to the teams based on how team rankings compare to the average rank
-    assign_players(mean_vals['rank'], women, teams, num_teams, team_index)
+    team_index = assign_players(mean_vals['rank'], women, teams, num_teams, team_index)
 
     # Transpose the teams and add a row that averages all values to include in the output
     final_teams = []
