@@ -2,7 +2,7 @@
 
 # Built in libraries
 import datetime as dt
-from enum import Enum
+from enum import StrEnum
 import math
 import os
 import random as rd
@@ -10,6 +10,26 @@ import random as rd
 # Third party libraries
 import pandas as pd
 import numpy as np
+
+
+class Throws(StrEnum):
+    NOOB = "I've thrown a frisbee before."
+    COMPETENT = "I can throw a forehand and backhand, even if they're occasionally wobbly."
+    PRO = "Accurate with standard throws; I know what IO and OI mean."
+    SCOOBER_GOD = "All the throws; I will destroy you with my full-field scoobers."
+
+
+class Experience(StrEnum):
+    ROOKIE = "Rookie"
+    PICKUP = "Pickup player"
+    CLUB = "Club (Sectionals) / Masters (Nationals) / High School (State / Nationals)"
+    PRO = "Club player (Regionals / Nationals)"
+
+
+class athletics(StrEnum):
+    UNFIT = "Out of shape; mostly I'm here to heckle."
+    FIT = "Athletic; just don't make me play savage."
+    FAST = "Very athletic; my two settings are Sprint and Horizontal."
 
 
 def enumerate_throws(string_in):
