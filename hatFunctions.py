@@ -1,9 +1,15 @@
+"""Backend logic for AutoHat app"""
+
+# Built in libraries
 import datetime as dt
+from enum import Enum
 import math
 import os
+import random as rd
+
+# Third party libraries
 import pandas as pd
 import numpy as np
-import random as rd
 
 
 def enumerate_throws(string_in):

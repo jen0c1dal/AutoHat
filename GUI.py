@@ -1,6 +1,11 @@
+"""GUI elements for AutoHat app"""
+
+# Third party libraries
 import tkinter as tk
 from tkinter import filedialog, ttk, messagebox
 import pandas as pd
+
+# Internal libraries
 import hatFunctions as hf
 
 
