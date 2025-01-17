@@ -46,6 +46,17 @@ def skill_match(text: str, enum_type) -> Enum:
     return 0
 
 
+class Player:
+    def __init__(self, throws: Throws, exp: Experience, athleticism: Athletics):
+        self.throws = throws
+        self.exp = exp
+        self.athleticism = Athletics
+
+    @property
+    def rank(self):
+        return self.throws + self.exp + self.athleticism
+
+
 def import_roster(filepath):
     df = pd.read_csv(filepath)
     df['throws'] = df['throws'].apply(skill_match, args=(Throws,))
