@@ -2,7 +2,7 @@
 
 # Built in libraries
 import datetime as dt
-from enum import StrEnum
+from enum import Enum
 import math
 import os
 import random as rd
@@ -12,68 +12,45 @@ import pandas as pd
 import numpy as np
 
 
-class Throws(StrEnum):
-    NOOB = "I've thrown a frisbee before."
-    COMPETENT = "I can throw a forehand and backhand, even if they're occasionally wobbly."
-    PRO = "Accurate with standard throws; I know what IO and OI mean."
-    SCOOBER_GOD = "All the throws; I will destroy you with my full-field scoobers."
+class SkillLevel:
+    def __init__(self, level: int, text: str):
+        self.level = level
+        self.text = text
 
 
-class Experience(StrEnum):
-    ROOKIE = "Rookie"
-    PICKUP = "Pickup player"
-    CLUB = "Club (Sectionals) / Masters (Nationals) / High School (State / Nationals)"
-    PRO = "Club player (Regionals / Nationals)"
+class Throws(Enum):
+    NOOB = SkillLevel(1, "I've thrown a frisbee before.")
+    COMPETENT = SkillLevel(2, "I can throw a forehand and backhand, even if they're occasionally wobbly.")
+    PRO = SkillLevel(3, "Accurate with standard throws; I know what IO and OI mean.")
+    SCOOBER_GOD = SkillLevel(4, "All the throws; I will destroy you with my full-field scoobers.")
 
 
-class athletics(StrEnum):
-    UNFIT = "Out of shape; mostly I'm here to heckle."
-    FIT = "Athletic; just don't make me play savage."
-    FAST = "Very athletic; my two settings are Sprint and Horizontal."
+class Experience(Enum):
+    ROOKIE = SkillLevel(1, "Rookie")
+    PICKUP = SkillLevel(2, "Pickup player")
+    CLUB = SkillLevel(3, "Club (Sectionals) / Masters (Nationals) / High School (State / Nationals)")
+    PRO = SkillLevel(4, "Club player (Regionals / Nationals)")
 
 
-def enumerate_throws(string_in):
-    if string_in == "I've thrown a frisbee before.":
-        return 1
-    elif string_in == "I can throw a forehand and backhand, even if they're occasionally wobbly.":
-        return 2
-    elif string_in == "Accurate with standard throws; I know what IO and OI mean.":
-        return 3
-    elif string_in == "All the throws; I will destroy you with my full-field scoobers.":
-        return 4
-    
-    return 0
+class Athletics(Enum):
+    UNFIT = SkillLevel(1, "Out of shape; mostly I'm here to heckle.")
+    FIT = SkillLevel(2, "Athletic; just don't make me play savage.")
+    FAST = SkillLevel(3, "Very athletic; my two settings are Sprint and Horizontal.")
 
 
-def enumerate_exp(string_in):
-    if string_in == "Rookie":
-        return 1
-    elif string_in == "Pickup player":
-        return 2
-    elif string_in == "Club (Sectionals) / Masters (Nationals) / High School (State / Nationals)":
-        return 3
-    elif string_in == "Club player (Regionals / Nationals)":
-        return 4
-    
-    return 0
-
-
-def enumerate_athletics(string_in):
-    if string_in == "Out of shape; mostly I'm here to heckle.":
-        return 1
-    elif string_in == "Athletic; just don't make me play savage.":
-        return 2
-    elif string_in == "Very athletic; my two settings are Sprint and Horizontal.":
-        return 3
+def skill_match(text: str, enum_type) -> Enum:
+    for enum in enum_type:
+        if enum.value.text == text:
+            return enum.value.level
     
     return 0
 
 
 def import_roster(filepath):
     df = pd.read_csv(filepath)
-    df['throws'] = df['throws'].apply(enumerate_throws)
-    df['experience'] = df['experience'].apply(enumerate_exp)
-    df['athleticism'] = df['athleticism'].apply(enumerate_athletics)
+    df['throws'] = df['throws'].apply(skill_match, args=(Throws,))
+    df['experience'] = df['experience'].apply(skill_match, args=(Experience,))
+    df['athleticism'] = df['athleticism'].apply(skill_match, args=(Athletics,))
     df['name'] = df['first_name'] + ' ' + df['last_name']
     df['rank'] = df['throws'] + df['experience'] + df['athleticism']
     product = df.columns[-3]
