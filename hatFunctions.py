@@ -18,6 +18,11 @@ class SkillLevel:
         self.text = text
 
 
+class Gender(Enum):
+    MALE = 1
+    FEMALE = 2
+
+
 class Throws(Enum):
     NOOB = SkillLevel(1, "I've thrown a frisbee before.")
     COMPETENT = SkillLevel(2, "I can throw a forehand and backhand, even if they're occasionally wobbly.")
@@ -47,7 +52,9 @@ def skill_match(text: str, enum_type) -> Enum:
 
 
 class Player:
-    def __init__(self, throws: Throws, exp: Experience, athleticism: Athletics):
+    def __init__(self, name: str, gender: Gender, throws: Throws, exp: Experience, athleticism: Athletics):
+        self.name = name
+        self.gender = gender
         self.throws = throws
         self.exp = exp
         self.athleticism = Athletics
