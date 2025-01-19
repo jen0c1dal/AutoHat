@@ -6,6 +6,7 @@ from enum import Enum
 import math
 import os
 import random as rd
+from typing import List
 
 # Third party libraries
 import pandas as pd
@@ -19,8 +20,8 @@ class SkillLevel:
 
 
 class Gender(Enum):
-    MALE = 1
-    FEMALE = 2
+    MALE = 'male'
+    FEMALE = 'female'
 
 
 class Throws(Enum):
@@ -52,16 +53,20 @@ def skill_match(text: str, enum_type) -> Enum:
 
 
 class Player:
-    def __init__(self, name: str, gender: Gender, throws: Throws, exp: Experience, athleticism: Athletics):
+    def __init__(self, name: str, gender: Gender, rank: int):
         self.name = name
         self.gender = gender
-        self.throws = throws
-        self.exp = exp
-        self.athleticism = Athletics
+        self.rank = rank
 
-    @property
-    def rank(self):
-        return self.throws + self.exp + self.athleticism
+    def __lt__(self, other):
+         return self.rank < other.rank
+
+    def to_dict(self):
+        return {
+            'name': self.name,
+            'gender': self.gender,
+            'rank': self.rank,
+        }
 
 
 def import_roster(filepath):
@@ -85,13 +90,8 @@ def launch_checkin(data_in_path):
     return raw_data
 
 
-def calc_means(df_in):
-    mean_throw = df_in['throws'].mean()
-    mean_exp = df_in['experience'].mean()
-    mean_athl = df_in['athleticism'].mean()
-    mean_rank = df_in['rank'].mean()
-    mean_vals = {'throw': [mean_throw], 'exp': [mean_exp], 'athl': [mean_athl], 'rank': [mean_rank]}
-    return mean_vals
+def calc_means(roster: List[Player]):
+    return sum(p.rank for p in roster) / len(roster)
 
 
 def assign_players(mean_rank, roster, teams, num_teams, team_index: int = 0) -> int:
@@ -112,12 +112,10 @@ def assign_players(mean_rank, roster, teams, num_teams, team_index: int = 0) -> 
     return team_index
 
 
-def pop_random_player(roster, low_index, high_index):
-    idx = rd.randint(low_index, high_index)
-    player = roster.iloc[idx]
-    roster.drop(index=roster.index[idx], inplace=True)
-    roster.reset_index(drop=True, inplace=True)
-    return player
+def pop_random_player(roster):
+    if len(roster) == 1:
+        return roster.pop(0)
+    return roster.pop(rd.randint(0, len(roster) - 1))
 
 
 # Add players one by one to build a dataframe of drop-in players. Only rank is enumerated,
@@ -135,41 +133,36 @@ def add_drop_in(drop_in_df, name, gender, rank):
 
 def generate_teams(raw_data, save_directory, num_teams):
     teams = []
-    raw_data.sort_values(by=['rank', 'experience', 'athleticism'], ascending=False, inplace=True)
-    mean_vals = calc_means(raw_data)
+    players = [Player(name, Gender(gender), rank) for name, gender, rank in zip(raw_data['name'], raw_data['gender'], raw_data['rank'])]
+    mean_rank = calc_means(players)
 
     # Split the roster into rosters of men and women
-    men = raw_data[raw_data['gender'] == 'male'].copy()
-    men.drop(['gender'], axis=1, inplace=True)
-    women = raw_data[raw_data['gender'] == 'female'].copy()
-    women.drop(['gender'], axis=1, inplace=True)
+    men = [p for p in players if p.gender == Gender.MALE]
+    women = [p for p in players if p.gender == Gender.FEMALE]
+
+    men.sort(reverse=True)
+    women.sort(reverse=True)
 
     # Add a top-ranked player to each team from the men's roster
     for _ in range(num_teams):
-        men.reset_index(drop=True, inplace=True)
-        teams.append(men.iloc[0])
-        men.drop(index=0, inplace=True)
+        teams.append([men.pop(0)])
 
     # Add a random player to each team from the men's roster
     for i in range(num_teams):
-        player = pop_random_player(men, 0, men.shape[0] - 1)
-        teams[i] = pd.concat([teams[i], player], axis=1)
+        teams[i].append(pop_random_player(men))
 
     # Add male players to the teams based on how team rankings compare to the average rank
-    team_index = assign_players(mean_vals['rank'], men, teams, num_teams)
+    team_index = assign_players(mean_rank, men, teams, num_teams)
 
     # Add female players to the teams based on how team rankings compare to the average rank
-    team_index = assign_players(mean_vals['rank'], women, teams, num_teams, team_index)
+    team_index = assign_players(mean_rank, women, teams, num_teams, team_index)
 
     # Transpose the teams and add a row that averages all values to include in the output
     final_teams = []
     for team in teams:
-        final_team = team.T
-        averages = pd.DataFrame({'name': ['AVERAGE:'], 'throws': [final_team['throws'].mean()],
-                                 'experience': [final_team['experience'].mean()],
-                                 'athleticism': [final_team['athleticism'].mean()],
-                                 'rank': [final_team['rank'].mean()]})
-        final_teams.append(pd.concat([final_team, averages]))
+        team_df = pd.DataFrame.from_records(p.to_dict() for p in team)
+        averages = pd.DataFrame({'name': ['AVERAGE:'], 'gender': [''], 'rank': [calc_means(team)]})
+        final_teams.append(pd.concat([team_df, averages]))
 
     timestamp = dt.datetime.now().strftime('%m-%d-%Y_%H-%M-%S')
     save_path = os.path.join(save_directory, f'teams_{timestamp}.xlsx')
