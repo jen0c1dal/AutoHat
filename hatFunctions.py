@@ -63,9 +63,9 @@ class Player:
 
     def to_dict(self):
         return {
-            'name': self.name,
-            'gender': self.gender,
-            'rank': self.rank,
+            'Name': self.name,
+            'Gender': self.gender.value,
+            'Rank': self.rank,
         }
 
 
@@ -90,32 +90,26 @@ def launch_checkin(data_in_path):
     return raw_data
 
 
-def calc_means(roster: List[Player]):
+def calc_mean_rank(roster: List[Player]) -> int:
     return sum(p.rank for p in roster) / len(roster)
 
 
 def assign_players(mean_rank, roster, teams, num_teams, team_index: int = 0) -> int:
-    while roster.shape[0] > 0:
-        if roster.shape[0] == 1:
-            player = roster.iloc[0]
-            roster.drop(index=roster.index[0], inplace=True)
-            roster.reset_index(drop=True, inplace=True)
+    while len(roster) > 0:
+        if calc_mean_rank(teams[team_index]) > mean_rank:
+            player = pop_random_player(roster, math.ceil(len(roster) / 2), len(roster) - 1)
         else:
-            if teams[team_index].loc['rank'].mean() < mean_rank:
-                player = pop_random_player(roster, math.ceil(roster.shape[0] / 2), roster.shape[0] - 1)
-            else:
-                player = pop_random_player(roster, 0, math.floor(roster.shape[0] / 2))
-        teams[team_index] = pd.concat([teams[team_index], player], axis=1)
-
+            player = pop_random_player(roster, 0, math.floor(len(roster) / 2))
+        teams[team_index].append(player)
         team_index = (team_index + 1) % num_teams
     
     return team_index
 
 
-def pop_random_player(roster):
+def pop_random_player(roster: List[Player], begin: int, end: int) -> Player:
     if len(roster) == 1:
         return roster.pop(0)
-    return roster.pop(rd.randint(0, len(roster) - 1))
+    return roster.pop(rd.randint(begin, end))
 
 
 # Add players one by one to build a dataframe of drop-in players. Only rank is enumerated,
@@ -134,7 +128,7 @@ def add_drop_in(drop_in_df, name, gender, rank):
 def generate_teams(raw_data, save_directory, num_teams):
     teams = []
     players = [Player(name, Gender(gender), rank) for name, gender, rank in zip(raw_data['name'], raw_data['gender'], raw_data['rank'])]
-    mean_rank = calc_means(players)
+    mean_rank = calc_mean_rank(players)
 
     # Split the roster into rosters of men and women
     men = [p for p in players if p.gender == Gender.MALE]
@@ -149,7 +143,7 @@ def generate_teams(raw_data, save_directory, num_teams):
 
     # Add a random player to each team from the men's roster
     for i in range(num_teams):
-        teams[i].append(pop_random_player(men))
+        teams[i].append(pop_random_player(men, 0, len(men) - 1))
 
     # Add male players to the teams based on how team rankings compare to the average rank
     team_index = assign_players(mean_rank, men, teams, num_teams)
@@ -161,7 +155,7 @@ def generate_teams(raw_data, save_directory, num_teams):
     final_teams = []
     for team in teams:
         team_df = pd.DataFrame.from_records(p.to_dict() for p in team)
-        averages = pd.DataFrame({'name': ['AVERAGE:'], 'gender': [''], 'rank': [calc_means(team)]})
+        averages = pd.DataFrame({'Average': [calc_mean_rank(team)]})
         final_teams.append(pd.concat([team_df, averages]))
 
     timestamp = dt.datetime.now().strftime('%m-%d-%Y_%H-%M-%S')
