@@ -172,14 +172,14 @@ class CheckInFrame(ttk.Frame):
 
     # Function which updates the drop-in player list. Can be called by the child frame "DropInFrame"
     def update_drop_in_df(self, drop_in_df):
-        self.drop_in_df = drop_in_df.copy()
+        self.drop_in_df = pd.concat([self.drop_in_df, drop_in_df], axis=0, ignore_index=True)
 
     # Function which builds the drop-in frame to allow drop-in players to be added to the roster
     def drop_in(self):
         drop_in_window = tk.Toplevel(self)
         drop_in_window.title('Add Drop-in Player')
         drop_in_window.geometry('300x100')
-        drop_in_frame = DropInFrame(drop_in_window, self.drop_in_df)
+        drop_in_frame = DropInFrame(drop_in_window)
         drop_in_frame.pack()
 
 
@@ -202,9 +202,8 @@ class CheckInFrame(ttk.Frame):
 
 # Frame to allow a drop-in player to be manually added to the roster. Accessed from the Check-in frame
 class DropInFrame(ttk.Frame):
-    def __init__(self, master, drop_in_df):
+    def __init__(self, master):
         super().__init__(master)
-        self.drop_in_df = drop_in_df
         self.name = tk.StringVar()
         self.gender = tk.StringVar()
         self.rank = tk.StringVar()
@@ -234,6 +233,6 @@ class DropInFrame(ttk.Frame):
         self.add_button.grid(row=3, column=1)
 
     def add_player(self):
-        self.drop_in_df = hf.add_drop_in(self.drop_in_df, self.name.get(), self.gender.get(), self.rank.get())
-        self.master.master.update_drop_in_df(self.drop_in_df)
+        drop_in_df = hf.add_drop_in(self.name.get(), self.gender.get(), self.rank.get())
+        self.master.master.update_drop_in_df(drop_in_df)
         self.master.destroy()

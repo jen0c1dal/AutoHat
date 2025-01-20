@@ -114,15 +114,12 @@ def pop_random_player(roster: List[Player], begin: int, end: int) -> Player:
 
 # Add players one by one to build a dataframe of drop-in players. Only rank is enumerated,
 # all other scores are given a value of NaN to indicate that the value isn't known
-def add_drop_in(drop_in_df, name, gender, rank):
+def add_drop_in(name: str, gender: str, rank: str) -> pd.DataFrame:
     drop_in_player = {'name': [name.title()], 'gender': [gender],
                       'throws': [np.nan], 'experience': [np.nan],
                        'athleticism': [np.nan], 'rank': [int(rank)]}
-    if drop_in_df.empty:
-        drop_in_df = pd.DataFrame(drop_in_player)
-    else:
-        drop_in_df = pd.concat([drop_in_df, pd.DataFrame(drop_in_player)], axis=0, ignore_index=True)
-    return drop_in_df
+
+    return pd.DataFrame(drop_in_player)
 
 
 def generate_teams(raw_data: pd.DataFrame, save_directory: str, num_teams: int):
