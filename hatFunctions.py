@@ -13,15 +13,15 @@ import pandas as pd
 import numpy as np
 
 
+class Gender(Enum):
+    MALE = 'male'
+    FEMALE = 'female'
+
+
 class SkillLevel:
     def __init__(self, level: int, text: str):
         self.level = level
         self.text = text
-
-
-class Gender(Enum):
-    MALE = 'male'
-    FEMALE = 'female'
 
 
 class Throws(Enum):
@@ -48,7 +48,7 @@ def skill_match(text: str, enum_type) -> Enum:
     for enum in enum_type:
         if enum.value.text == text:
             return enum.value.level
-    
+
     return 0
 
 
@@ -58,10 +58,10 @@ class Player:
         self.gender = gender
         self.rank = rank
 
-    def __lt__(self, other):
+    def __lt__(self, other) -> bool:
          return self.rank < other.rank
 
-    def to_dict(self):
+    def to_dict(self) -> dict:
         return {
             'Name': self.name,
             'Gender': self.gender.value,
@@ -94,7 +94,7 @@ def calc_mean_rank(roster: List[Player]) -> int:
     return sum(p.rank for p in roster) / len(roster)
 
 
-def assign_players(mean_rank, roster, teams, num_teams, team_index: int = 0) -> int:
+def assign_players(mean_rank: float, roster: List[Player], teams: List[List[Player]], num_teams: int, team_index: int = 0) -> int:
     while len(roster) > 0:
         if calc_mean_rank(teams[team_index]) > mean_rank:
             player = pop_random_player(roster, math.ceil(len(roster) / 2), len(roster) - 1)
@@ -125,7 +125,7 @@ def add_drop_in(drop_in_df, name, gender, rank):
     return drop_in_df
 
 
-def generate_teams(raw_data, save_directory, num_teams):
+def generate_teams(raw_data: pd.DataFrame, save_directory: str, num_teams: int):
     teams = []
     players = [Player(name, Gender(gender), rank) for name, gender, rank in zip(raw_data['name'], raw_data['gender'], raw_data['rank'])]
     mean_rank = calc_mean_rank(players)
@@ -151,7 +151,7 @@ def generate_teams(raw_data, save_directory, num_teams):
     # Add female players to the teams based on how team rankings compare to the average rank
     team_index = assign_players(mean_rank, women, teams, num_teams, team_index)
 
-    # Transpose the teams and add a row that averages all values to include in the output
+    # Add a row that averages the rank to include in the output
     final_teams = []
     for team in teams:
         team_df = pd.DataFrame.from_records(p.to_dict() for p in team)

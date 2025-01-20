@@ -2,7 +2,7 @@
 
 # Third party libraries
 import tkinter as tk
-from tkinter import filedialog, ttk, messagebox
+from tkinter import filedialog, messagebox, ttk
 import pandas as pd
 
 # Internal libraries
