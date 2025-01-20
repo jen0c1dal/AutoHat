@@ -80,7 +80,7 @@ def assign_players(mean_rank, roster, teams, num_teams, team_index: int = 0) -> 
             roster.drop(index=roster.index[0], inplace=True)
             roster.reset_index(drop=True, inplace=True)
         else:
-            if teams[team_index].loc['rank'].mean() < mean_rank:
+            if teams[team_index].loc['rank'].mean() > mean_rank:
                 player = pop_random_player(roster, math.ceil(roster.shape[0] / 2), roster.shape[0] - 1)
             else:
                 player = pop_random_player(roster, 0, math.floor(roster.shape[0] / 2))
