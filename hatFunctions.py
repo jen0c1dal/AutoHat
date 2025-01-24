@@ -50,10 +50,7 @@ def import_roster(filepath):
     df['athleticism'] = df['athleticism'].apply(enumerate_athletics)
     df['name'] = df['first_name'] + ' ' + df['last_name']
     df['rank'] = df['throws'] + df['experience'] + df['athleticism']
-    product = df.columns[-3]
-    df.drop(columns=['first_name', 'last_name', product], inplace=True)
-    names = df.pop('name').str.title()
-    df.insert(0, 'name', names)
+    df.drop(columns=['first_name', 'last_name'], inplace=True)
     return df
 
 
