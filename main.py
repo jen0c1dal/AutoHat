@@ -1,3 +1,6 @@
+"""Main entry point to launch app"""
+
+# Internal libraries
 import GUI
 
 
