@@ -102,7 +102,7 @@ class CheckInFrame(ttk.Frame):
         self.check_buttons = []
 
         self.num_teams_label = ttk.Label(self, text='Number of Teams: ')
-        self.options = [2, 2, 3, 4]
+        self.options = [2, 2, 3, 4, 5, 6, 7, 8]
         self.num_teams = tk.IntVar()
         self.num_teams.set(self.options[0])
         self.num_teams_menu = ttk.OptionMenu(self, self.num_teams, *self.options)
