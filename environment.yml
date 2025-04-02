@@ -1,0 +1,10 @@
+name: AutoHat
+channels:
+  - defaults
+dependencies:
+  - python=3.12
+  - numpy
+  - tk
+  - pip
+  - pip:
+    - xlsxwriter
