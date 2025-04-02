@@ -119,6 +119,7 @@ def add_drop_in(name: str, gender: str, rank: str) -> pd.DataFrame:
     return pd.DataFrame(drop_in_player)
 
 
+# Main function to generate a given number of teams teams from the list of checked in players
 def generate_teams(raw_data: pd.DataFrame, save_directory: str, num_teams: int):
     teams = []
     players = [Player(name, Gender(gender), rank) for name, gender, rank in zip(raw_data['name'], raw_data['gender'], raw_data['rank'])]
@@ -131,13 +132,22 @@ def generate_teams(raw_data: pd.DataFrame, save_directory: str, num_teams: int):
     men.sort(reverse=True)
     women.sort(reverse=True)
 
-    # Add a top-ranked player to each team from the men's roster
-    for _ in range(num_teams):
-        teams.append([men.pop(0)])
+    if len(men) > 0:    
+        # Add a top-ranked player to each team from the men's roster
+        for _ in range(num_teams):
+            teams.append([men.pop(0)])
 
-    # Add a random player to each team from the men's roster
-    for i in range(num_teams):
-        teams[i].append(pop_random_player(men, 0, len(men) - 1))
+        # Add a random player to each team from the men's roster
+        for i in range(num_teams):
+            teams[i].append(pop_random_player(men, 0, len(men) - 1))
+    else:
+        # Add a top-ranked player to each team from the women's roster
+        for _ in range(num_teams):
+            teams.append([women.pop(0)])
+
+        # Add a random player to each team from the women's roster
+        for i in range(num_teams):
+            teams[i].append(pop_random_player(women, 0, len(women) - 1))  
 
     # Add male players to the teams based on how team rankings compare to the average rank
     team_index = assign_players(mean_rank, men, teams, num_teams)
