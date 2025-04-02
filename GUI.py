@@ -29,7 +29,7 @@ class AutoHat(tk.Tk):
     # Method to switch frames and load the check in frame
     def show_checkin_frame(self):
         if self.file_frame.done:
-            self.geometry('500x500')
+            self.geometry('500x700')
             self.checkin_frame = CheckInFrame(self, self.file_frame.reg_df, self.file_frame.save_dir)
             self.checkin_frame.pack(padx=5, pady=5, fill='both', expand=True)
             self.file_frame.pack_forget()
