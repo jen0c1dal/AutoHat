@@ -171,3 +171,13 @@ def generate_teams(raw_data: pd.DataFrame, save_directory: str, num_teams: int):
         for team in final_teams:
             team.to_excel(writer, sheet_name='Sheet1', startrow=offset, index=False)
             offset += len(team) + 4
+
+
+# Function to export the drop in and registered player data to allow for reusability and troubleshooting
+def export_players(player_data: pd.DataFrame, save_directory: str):
+    timestamp = dt.datetime.now().strftime('%m-%d-%Y_%H-%M-%S')
+    save_path = os.path.join(save_directory, f'players_{timestamp}.xlsx')
+    with pd.ExcelWriter(save_path, engine='xlsxwriter') as writer:
+        offset = 0
+        player_data.to_excel(writer, sheet_name='Sheet1', startrow=offset, index=False)
+        
