@@ -38,10 +38,18 @@ class Experience(Enum):
     PRO = SkillLevel(4, "Club player (Regionals / Nationals)")
 
 
+class Endurance(Enum):
+    BACKUP = SkillLevel(1, "I like to rest for a few points in between the points that I play.")
+    LINE = SkillLevel(2, "I can play about every other point at full speed.")
+    ANCHOR = SkillLevel(3, "I can play a few points in a row at full speed before I need a rest.")
+    SAVAGE = SkillLevel(4, "I actually prefer to play savage.")
+
+
 class Athletics(Enum):
     UNFIT = SkillLevel(1, "Out of shape; mostly I'm here to heckle.")
-    FIT = SkillLevel(2, "Athletic; just don't make me play savage.")
-    FAST = SkillLevel(3, "Very athletic; my two settings are Sprint and Horizontal.")
+    FIT = SkillLevel(2, "Somewhat athletic; I can usually get open when I make a cut.")
+    FAST = SkillLevel(3, "Quite athletic; I have no difficulty getting open when I make cuts.")
+    ELITE = SkillLevel(4, "Very athletic; my two settings are Sprint and Horizontal.")
 
 
 def skill_match(text: str, enum_type) -> Enum:
@@ -73,9 +81,10 @@ def import_roster(filepath):
     df = pd.read_csv(filepath)
     df['throws'] = df['throws'].apply(skill_match, args=(Throws,))
     df['experience'] = df['experience'].apply(skill_match, args=(Experience,))
+    df['endurance'] = df['endurance'].apply(skill_match, args=((Endurance,)))
     df['athleticism'] = df['athleticism'].apply(skill_match, args=(Athletics,))
     df['name'] = df['first_name'] + ' ' + df['last_name']
-    df['rank'] = df['throws'] + df['experience'] + df['athleticism']
+    df['rank'] = df['throws'] + df['experience'] + df['endurance'] + df['athleticism']
     df.drop(columns=['first_name', 'last_name'], inplace=True)
     return df
 
