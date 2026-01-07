@@ -29,7 +29,7 @@ class AutoHat(tk.Tk):
     # Method to switch frames and load the check in frame
     def show_checkin_frame(self):
         if self.file_frame.done:
-            self.geometry('500x500')
+            self.geometry('500x700')
             self.checkin_frame = CheckInFrame(self, self.file_frame.reg_df, self.file_frame.save_dir)
             self.checkin_frame.pack(padx=5, pady=5, fill='both', expand=True)
             self.file_frame.pack_forget()
@@ -114,6 +114,8 @@ class CheckInFrame(ttk.Frame):
 
         self.drop_in_button = ttk.Button(self, text='Add Drop-in Player', command=self.drop_in)
 
+        self.export_players_button = ttk.Button(self, text='Export Players', command=self.export_players)
+
         # Create a canvas to hold the contents of the frame
         self.canvas = tk.Canvas(self)
 
@@ -163,6 +165,7 @@ class CheckInFrame(ttk.Frame):
         self.num_players_label.pack(anchor=tk.E, padx=10, pady=5)
         self.count_players.pack(anchor=tk.E, padx=10, pady=5)
         self.drop_in_button.pack(anchor=tk.W, padx=10, pady=5)
+        self.export_players_button.pack(anchor=tk.E, padx=10, pady=5)
 
     # Function to update the count of players that are checked in, which will display automatically
     def update_player_count(self):
@@ -197,6 +200,18 @@ class CheckInFrame(ttk.Frame):
             messagebox.showinfo('hat empty', 'Teams spreadsheet created')
         except (IndexError, KeyError, ValueError):
             messagebox.showinfo('Error', 'Not enough players checked in')
+        self.reg_df = hold_df
+
+    # Function to generate export a list of all checked in players and drop in players to the save directory
+    def export_players(self):
+        hold_df = self.reg_df.copy()
+        for index, here in enumerate(self.check_buttons):
+            if not here.get():
+                self.reg_df.drop(index=index, inplace=True)
+        self.reg_df = self.reg_df.reset_index(drop=True)
+        full_roster_df = pd.DataFrame(pd.concat([self.reg_df, self.drop_in_df], axis=0, ignore_index=True))
+        hf.export_players(full_roster_df, self.save_dir)
+        messagebox.showinfo('Success', 'Player sheet exported successfuly')
         self.reg_df = hold_df
 
 
