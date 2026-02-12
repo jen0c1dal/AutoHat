@@ -77,6 +77,37 @@ class Player:
         }
 
 
+# Class to baggage multiple players together
+class Baggage:
+    def __init__(self, players: List[str] | None = None, roster: pd.DataFrame | None = None):
+        if players is None:
+            self.players = []
+            self.mean_rank = 0.0
+            self.num_fmp = 0
+        else:
+            self.players = self.create_baggage(players, roster)
+            self.mean_rank = calc_mean_rank(self.players)
+            self.num_fmp = len([p for p in self.players if p.gender == Gender.FEMALE])
+        self.num_players = len(self.players)
+
+    # Create a baggage (list of player objects) from a list of player names and the active roster
+    def create_baggage(self, players: List[str], roster: pd.DataFrame):
+        baggage = []
+        for p in players:
+            player = roster.loc[roster['name'] == p].iloc[0].copy()
+            name, gender, rank = player['name'], player['gender'], player['rank']
+            baggage.append(Player(name, Gender(gender), rank))
+            roster.drop(player.name, inplace=True)
+            roster.reset_index(inplace=True)
+        return baggage
+    
+    # Add a player to an already existing baggage
+    def add_player():
+    
+    # Export the list of players to a simple Python list
+    def to_list():
+
+
 def import_roster(filepath):
     df = pd.read_csv(filepath)
     df['throws'] = df['throws'].apply(skill_match, args=(Throws,))
