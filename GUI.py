@@ -230,7 +230,7 @@ class DropInFrame(ttk.Frame):
         self.male_rb = ttk.Radiobutton(self, text='Male', variable=self.gender, value='male')
         self.female_rb = ttk.Radiobutton(self, text='Female', variable=self.gender, value='female')
 
-        self.rank_label = ttk.Label(self, text='Skill rank (From 3 to 11)')
+        self.rank_label = ttk.Label(self, text='Skill rank (From 4 to 16)')
         self.rank_entry = ttk.Entry(self, textvariable=self.rank)
 
         self.add_button = ttk.Button(self, text='Add Player', command=self.add_player)
