@@ -6,7 +6,7 @@ from enum import Enum
 import math
 import os
 import random as rd
-from typing import List
+from typing import List, Tuple
 
 # Third party libraries
 import pandas as pd
@@ -78,34 +78,43 @@ class Player:
 
 
 # Class to baggage multiple players together
-class Baggage:
-    def __init__(self, players: List[str] | None = None, roster: pd.DataFrame | None = None):
+class PlayerGroup:
+    def __init__(self, players: List[str] = None, roster: pd.DataFrame = None):
         if players is None:
             self.players = []
+            self.player_idxs = []
             self.mean_rank = 0.0
             self.num_fmp = 0
         else:
-            self.players = self.create_baggage(players, roster)
+            self.players, self.player_idxs = self.create_group(players, roster)
             self.mean_rank = calc_mean_rank(self.players)
             self.num_fmp = len([p for p in self.players if p.gender == Gender.FEMALE])
         self.num_players = len(self.players)
 
-    # Create a baggage (list of player objects) from a list of player names and the active roster
-    def create_baggage(self, players: List[str], roster: pd.DataFrame):
-        baggage = []
+    # Create a group (list of player objects) from a list of player names and the active roster
+    def create_group(self, players: List[str], roster: pd.DataFrame):
+        group = []
+        player_idxs = []
         for p in players:
             player = roster.loc[roster['name'] == p].iloc[0].copy()
             name, gender, rank = player['name'], player['gender'], player['rank']
-            baggage.append(Player(name, Gender(gender), rank))
-            roster.drop(player.name, inplace=True)
-            roster.reset_index(inplace=True)
-        return baggage
+            group.append(Player(name, Gender(gender), rank))
+            player_idxs.append(roster.index[roster['name'] == p])
+        return group, player_idxs
     
-    # Add a player to an already existing baggage
-    def add_player():
-    
-    # Export the list of players to a simple Python list
-    def to_list():
+    # Add a player to an already existing group
+    def add_players(self, players: Player):
+        if isinstance(players, Player):
+            self.players.append(players)
+        else:
+            self.players.extend(players)
+        self.num_fmp = len([p for p in self.players if p.gender == Gender.FEMALE])
+        self.mean_rank = calc_mean_rank(self.players)
+        self.num_players = len(self.players)
+
+    # Sort on rank
+    def __lt__(self, other) -> bool:
+        return self.mean_rank < other.mean_rank
 
 
 def import_roster(filepath):
@@ -131,13 +140,13 @@ def calc_mean_rank(roster: List[Player]) -> int:
     return sum(p.rank for p in roster) / len(roster)
 
 
-def assign_players(mean_rank: float, roster: List[Player], teams: List[List[Player]], num_teams: int, team_index: int = 0) -> int:
+def assign_players(mean_rank: float, roster: List[Player], teams: List[PlayerGroup], num_teams: int, team_index: int = 0) -> int:
     while len(roster) > 0:
-        if calc_mean_rank(teams[team_index]) > mean_rank:
+        if teams[team_index].mean_rank > mean_rank:
             player = pop_random_player(roster, math.ceil(len(roster) / 2), len(roster) - 1)
         else:
             player = pop_random_player(roster, 0, math.floor(len(roster) / 2))
-        teams[team_index].append(player)
+        teams[team_index].add_players(player)
         team_index = (team_index + 1) % num_teams
     
     return team_index
@@ -149,19 +158,64 @@ def pop_random_player(roster: List[Player], begin: int, end: int) -> Player:
     return roster.pop(rd.randint(begin, end))
 
 
+# Function to add baggages to teams from the list of baggages
+def add_baggages_to_teams(teams: List[PlayerGroup], baggages: List[PlayerGroup], mean_rank:float):
+    while len(baggages) > 0:
+        for t in teams:
+            if len(baggages) > 0:
+                if t.mean_rank > mean_rank:
+                    t.add_players(baggages[-1].players)
+                else:
+                    t.add_players(baggages[0].players)
+       
+
+# Function to balance the number of women and total players on a team, in that order. Function stops execution
+# once all teams have an equal number of both women and men
+def balance_teams(teams: List[PlayerGroup], m_roster: List[Player], f_roster: List[Player], mean_rank: float):
+    max_num_fmp = max([f.num_fmp for f in teams])
+    min_num_fmp = min([f.num_fmp for f in teams])
+    while min_num_fmp < max_num_fmp and len(f_roster) > 0:
+        for t in teams:
+            if t.num_fmp < max_num_fmp:
+                if t.mean_rank > mean_rank:
+                    t.add_players(pop_random_player(f_roster, math.ceil(len(f_roster) / 2), len(f_roster) - 1))
+                else:
+                    t.add_players(pop_random_player(f_roster, 0, math.floor(len(f_roster) / 2)))
+            min_num_fmp = min([f.num_fmp for f in teams])
+    max_players = max([n.num_players for n in teams])
+    min_players = min([n.num_players for n in teams])
+    while min_players < max_players:
+        for t in teams:
+            if t.num_players < max_players:
+                if t.mean_rank > mean_rank:
+                    t.add_players(pop_random_player(m_roster, math.ceil(len(m_roster) / 2), len(m_roster) - 1))
+                else:
+                    t.add_players(pop_random_player(m_roster, 0, math.floor(len(m_roster) / 2)))
+
+
 # Add players one by one to build a dataframe of drop-in players. Only rank is enumerated,
 # all other scores are given a value of NaN to indicate that the value isn't known
 def add_drop_in(name: str, gender: str, rank: str) -> pd.DataFrame:
     drop_in_player = {'name': [name.title()], 'gender': [gender],
                       'throws': [np.nan], 'experience': [np.nan],
-                       'athleticism': [np.nan], 'rank': [int(rank)]}
-
+                      'endurance': [np.nan], 'athleticism': [np.nan], 'rank': [int(rank)]}
+    
     return pd.DataFrame(drop_in_player)
 
 
+# Add a baggage object, grouping players internally. Returns both a PlayerGroup object and
+# the associated list of indeces so that players can be dropped from the main roster when
+# it comes time to generate teams
+def create_baggage(players: List[str], roster: pd.DataFrame) -> Tuple[PlayerGroup, List[int]]:
+    baggage = PlayerGroup(players, roster)
+    return baggage, baggage.player_idxs
+
+
 # Main function to generate a given number of teams teams from the list of checked in players
-def generate_teams(raw_data: pd.DataFrame, save_directory: str, num_teams: int):
+def generate_teams(raw_data: pd.DataFrame, save_directory: str, num_teams: int, baggages: List[PlayerGroup]):
     teams = []
+    for _ in range(num_teams):
+        teams.append(PlayerGroup())
     players = [Player(name, Gender(gender), rank) for name, gender, rank in zip(raw_data['name'], raw_data['gender'], raw_data['rank'])]
     mean_rank = calc_mean_rank(players)
 
@@ -174,20 +228,28 @@ def generate_teams(raw_data: pd.DataFrame, save_directory: str, num_teams: int):
 
     if len(men) > 0:    
         # Add a top-ranked player to each team from the men's roster
-        for _ in range(num_teams):
-            teams.append([men.pop(0)])
+        for t in teams:
+            t.add_players(men.pop(0))
 
         # Add a random player to each team from the men's roster
         for i in range(num_teams):
-            teams[i].append(pop_random_player(men, 0, len(men) - 1))
+            teams[i].add_players(pop_random_player(men, 0, len(men) - 1))
     else:
         # Add a top-ranked player to each team from the women's roster
-        for _ in range(num_teams):
-            teams.append([women.pop(0)])
+        for t in teams:
+            teams.add_players(women.pop(0))
 
         # Add a random player to each team from the women's roster
         for i in range(num_teams):
-            teams[i].append(pop_random_player(women, 0, len(women) - 1))  
+            teams[i].add_players(pop_random_player(women, 0, len(women) - 1))
+
+    # If there are baggages, add them to the teams and then balance the number of women and
+    # total number of players
+    if len(baggages) > 0:
+        baggages.sort(reverse=True)
+        mean_rank += sum([t.mean_rank for t in teams])/num_teams
+        add_baggages_to_teams(teams, baggages, mean_rank)
+        balance_teams(teams, men, women, mean_rank)
 
     # Add male players to the teams based on how team rankings compare to the average rank
     team_index = assign_players(mean_rank, men, teams, num_teams)
@@ -198,8 +260,8 @@ def generate_teams(raw_data: pd.DataFrame, save_directory: str, num_teams: int):
     # Add a row that averages the rank to include in the output
     final_teams = []
     for team in teams:
-        team_df = pd.DataFrame.from_records(p.to_dict() for p in team)
-        averages = pd.DataFrame({'Average': [calc_mean_rank(team)]})
+        team_df = pd.DataFrame.from_records(p.to_dict() for p in team.players)
+        averages = pd.DataFrame({'Average': [team.mean_rank]})
         final_teams.append(pd.concat([team_df, averages]))
 
     timestamp = dt.datetime.now().strftime('%m-%d-%Y_%H-%M-%S')
