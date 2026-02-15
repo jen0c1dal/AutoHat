@@ -164,9 +164,10 @@ def add_baggages_to_teams(teams: List[PlayerGroup], baggages: List[PlayerGroup],
         for t in teams:
             if len(baggages) > 0:
                 if t.mean_rank > mean_rank:
-                    t.add_players(baggages[-1].players)
+                    baggage = baggages.pop()
                 else:
-                    t.add_players(baggages[0].players)
+                    baggage = baggages.pop(0)
+                t.add_players(baggage.players)
        
 
 # Function to balance the number of women and total players on a team, in that order. Function stops execution
@@ -184,7 +185,7 @@ def balance_teams(teams: List[PlayerGroup], m_roster: List[Player], f_roster: Li
             min_num_fmp = min([f.num_fmp for f in teams])
     max_players = max([n.num_players for n in teams])
     min_players = min([n.num_players for n in teams])
-    while min_players < max_players:
+    while min_players < max_players and (m_roster or f_roster):
         for t in teams:
             if t.num_players < max_players:
                 if t.mean_rank > mean_rank:
