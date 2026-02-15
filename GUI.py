@@ -30,7 +30,7 @@ class AutoHat(tk.Tk):
     def show_checkin_frame(self):
         if self.file_frame.done:
             self.geometry('500x700')
-            self.checkin_frame = CheckInFrame(self, self.file_frame.reg_df, self.file_frame.save_dir)
+            self.checkin_frame = CheckInFrame(self, self.file_frame.roster_df, self.file_frame.save_dir)
             self.checkin_frame.pack(padx=5, pady=5, fill='both', expand=True)
             self.file_frame.pack_forget()
 
@@ -43,7 +43,7 @@ class FileFrame(ttk.Frame):
         self.done = False
         self.file_path = ''
         self.save_dir = ''
-        self.reg_df = None
+        self.roster_df = None
         self.data_in_label = ttk.Label(self, text='Check In Sheet Filepath: ')
         self.data_in_path = ttk.Label(self, text='', padding=5)
         self.data_in_button = ttk.Button(self, text='Browse', command=self.get_filepath)
@@ -85,7 +85,7 @@ class FileFrame(ttk.Frame):
 
     # Callback function to main app class, switches frames and loads the check in frame
     def check_in(self):
-        self.reg_df = hf.launch_checkin(self.file_path)
+        self.roster_df = hf.launch_checkin(self.file_path)
         self.done = True
         self.callback()
 
@@ -93,11 +93,12 @@ class FileFrame(ttk.Frame):
 # Class for check in frame which lets the user mark attendance, choose the number of teams to create rosters for, and
 # generate excel spreadsheets which list the randomly shuffled teams
 class CheckInFrame(ttk.Frame):
-    def __init__(self, parent, reg_df, save_dir):
+    def __init__(self, parent, roster_df, save_dir):
         super().__init__(parent)
-        self.reg_df = reg_df
+        self.roster_df = roster_df
         self.save_dir = save_dir
-        self.drop_in_df = pd.DataFrame()
+        self.baggages = []
+        self.baggage_idxs = []
         self.labels = []
         self.check_buttons = []
 
@@ -113,6 +114,8 @@ class CheckInFrame(ttk.Frame):
         self.count_players = ttk.Button(self, text='Count Players', command=self.update_player_count)
 
         self.drop_in_button = ttk.Button(self, text='Add Drop-in Player', command=self.drop_in)
+
+        self.add_baggage_button = ttk.Button(self, text='Add Baggage', command=self.add_baggage)
 
         self.export_players_button = ttk.Button(self, text='Export Players', command=self.export_players)
 
@@ -143,7 +146,52 @@ class CheckInFrame(ttk.Frame):
 
     # Pack the frame
     def create_layout(self):
-        for _, row in self.reg_df.iterrows():
+        self.refresh_player_list()
+
+        self.num_teams_label.pack(anchor=tk.W, padx=10, pady=5)
+        self.num_teams_menu.pack(anchor=tk.W, padx=10, pady=5)
+        self.draw_teams_button.pack(anchor=tk.SW, padx=10, pady=20)
+        self.num_players_label.pack(anchor=tk.E, padx=10, pady=5)
+        self.count_players.pack(anchor=tk.E, padx=10, pady=5)
+        self.drop_in_button.pack(anchor=tk.W, padx=10, pady=5)
+        self.add_baggage_button.pack(anchor=tk.W, padx=10, pady=5)
+        self.export_players_button.pack(anchor=tk.E, padx=10, pady=5)
+        
+    # Function to update the count of players that are checked in, which will display automatically
+    def update_player_count(self):
+        num_players = sum(1 for here in self.check_buttons if here.get())
+        self.num_players_label.config(text=num_players)
+
+    # Function which updates the drop-in player list. Can be called by the child frame "DropInFrame"
+    def update_roster(self, drop_in_df):
+        start_index = len(self.roster_df)
+
+        self.roster_df = pd.concat([self.roster_df, drop_in_df], axis=0, ignore_index=True)
+
+        # Automatically check new players
+        new_indices = list(range(start_index, len(self.roster_df)))
+
+        self.refresh_player_list(prechecked_indices=new_indices)
+
+    def refresh_player_list(self, prechecked_indices=None):
+        if prechecked_indices is None:
+            prechecked_indices = []
+
+        # --- Save existing checkbox states ---
+        old_states = {
+            i: var.get()
+            for i, var in enumerate(self.check_buttons)
+        }
+
+        # --- Clear old widgets ---
+        for widget in self.canvas_frame.winfo_children():
+            widget.destroy()
+
+        self.labels.clear()
+        self.check_buttons.clear()
+
+        # --- Rebuild list ---
+        for i, (_, row) in enumerate(self.roster_df.iterrows()):
             name = row['name']
 
             frame = ttk.Frame(self.canvas_frame)
@@ -152,30 +200,16 @@ class CheckInFrame(ttk.Frame):
             label = ttk.Label(frame, text=name)
             label.pack(side='right', padx=10)
 
-            var = tk.BooleanVar()
+            # Determine checkbox state
+            checked = old_states.get(i, False) or (i in prechecked_indices)
+
+            var = tk.BooleanVar(value=checked)
             checkbutton = ttk.Checkbutton(frame, variable=var)
             checkbutton.pack(side='left', padx=10)
 
             self.check_buttons.append(var)
             self.labels.append(label)
 
-        self.num_teams_label.pack(anchor=tk.W, padx=10, pady=5)
-        self.num_teams_menu.pack(anchor=tk.W, padx=10, pady=5)
-        self.draw_teams_button.pack(anchor=tk.SW, padx=10, pady=20)
-        self.num_players_label.pack(anchor=tk.E, padx=10, pady=5)
-        self.count_players.pack(anchor=tk.E, padx=10, pady=5)
-        self.drop_in_button.pack(anchor=tk.W, padx=10, pady=5)
-        self.export_players_button.pack(anchor=tk.E, padx=10, pady=5)
-
-    # Function to update the count of players that are checked in, which will display automatically
-    def update_player_count(self):
-        num_players = sum(1 for here in self.check_buttons if here.get())
-        num_players += self.drop_in_df.shape[0]
-        self.num_players_label.config(text=num_players)
-
-    # Function which updates the drop-in player list. Can be called by the child frame "DropInFrame"
-    def update_drop_in_df(self, drop_in_df):
-        self.drop_in_df = pd.concat([self.drop_in_df, drop_in_df], axis=0, ignore_index=True)
 
     # Function which builds the drop-in frame to allow drop-in players to be added to the roster
     def drop_in(self):
@@ -186,33 +220,31 @@ class CheckInFrame(ttk.Frame):
         drop_in_frame.pack()
 
 
+    def add_baggage(self):
+        baggage_window = tk.Toplevel(self)
+        baggage_window.title('Add Baggage')
+        baggage_window.geometry('500x700')
+        baggage_frame = BaggageFrame(baggage_window)
+        baggage_frame.pack(fill='both', expand=True)
+
+
     # Function which discards all rostered players not present, then randomly shuffles teams based on the GUI inputs
     # and generates an excel sheet with the newly created teams
     def draw_teams(self):
-        hold_df = self.reg_df.copy()
-        for index, here in enumerate(self.check_buttons):
-            if not here.get():
-                self.reg_df.drop(index=index, inplace=True)
-        self.reg_df = self.reg_df.reset_index(drop=True)
         try:
-            full_roster_df = pd.DataFrame(pd.concat([self.reg_df, self.drop_in_df], axis=0, ignore_index=True))
-            hf.generate_teams(full_roster_df, self.save_dir, self.num_teams.get())
+            present_mask = [var.get() for var in self.check_buttons]
+            filtered_df = self.roster_df[present_mask].reset_index(drop=True)
+            hf.generate_teams(filtered_df, self.save_dir, self.num_teams.get(), self.baggages)
             messagebox.showinfo('hat empty', 'Teams spreadsheet created')
         except (IndexError, KeyError, ValueError):
             messagebox.showinfo('Error', 'Not enough players checked in')
-        self.reg_df = hold_df
 
     # Function to generate export a list of all checked in players and drop in players to the save directory
     def export_players(self):
-        hold_df = self.reg_df.copy()
-        for index, here in enumerate(self.check_buttons):
-            if not here.get():
-                self.reg_df.drop(index=index, inplace=True)
-        self.reg_df = self.reg_df.reset_index(drop=True)
-        full_roster_df = pd.DataFrame(pd.concat([self.reg_df, self.drop_in_df], axis=0, ignore_index=True))
-        hf.export_players(full_roster_df, self.save_dir)
-        messagebox.showinfo('Success', 'Player sheet exported successfuly')
-        self.reg_df = hold_df
+        present_mask = [var.get() for var in self.check_buttons]
+        filtered_df = self.roster_df[present_mask].reset_index(drop=True)
+        hf.export_players(filtered_df, self.save_dir)
+        messagebox.showinfo('Success', 'Player sheet exported successfully')
 
 
 # Frame to allow a drop-in player to be manually added to the roster. Accessed from the Check-in frame
@@ -249,5 +281,82 @@ class DropInFrame(ttk.Frame):
 
     def add_player(self):
         drop_in_df = hf.add_drop_in(self.name.get(), self.gender.get(), self.rank.get())
-        self.master.master.update_drop_in_df(drop_in_df)
+        self.master.master.update_roster(drop_in_df)
+        self.master.destroy()
+
+
+# Frame to add PlayerGroup baggages to the baggages list. Accessed from the Check-in Frame
+class BaggageFrame(ttk.Frame):
+    def __init__(self, master):
+        super().__init__(master)
+
+        # Reference to CheckInFrame
+        self.parent = master.master
+
+        # --- Build player_roster dataframe ---
+        self.roster = self.parent.roster_df[
+            ~self.parent.roster_df.index.isin(self.parent.baggage_idxs)
+            ].copy()
+
+        # Storage for checkbox variables
+        self.check_vars = []
+
+        # --- Button ---
+        self.create_button = ttk.Button(self, text='Create baggage', command=self.create_baggage)
+
+        # --- Scrollable area setup (same pattern as CheckInFrame) ---
+        self.canvas = tk.Canvas(self)
+        self.scrollbar = ttk.Scrollbar(self, orient='vertical', command=self.canvas.yview)
+        self.canvas.configure(yscrollcommand=self.scrollbar.set)
+
+        self.canvas_frame = ttk.Frame(self.canvas)
+
+        self.create_layout()
+
+        # Pack scroll components
+        self.canvas.pack(side='left', fill='both', expand=True)
+        self.scrollbar.pack(side='right', fill='y')
+
+        self.canvas.create_window((0, 0), window=self.canvas_frame, anchor="nw")
+
+        self.canvas_frame.bind(
+            "<Configure>",
+            lambda e: self.canvas.configure(
+                scrollregion=self.canvas.bbox("all")
+            )
+        )
+
+    # --- Layout ---
+    def create_layout(self):
+        for _, row in self.roster.iterrows():
+            name = row['name']
+
+            frame = ttk.Frame(self.canvas_frame)
+            frame.pack(fill='x', padx=10, pady=5)
+
+            label = ttk.Label(frame, text=name)
+            label.pack(side='right', padx=10)
+
+            var = tk.BooleanVar()
+            check = ttk.Checkbutton(frame, variable=var)
+            check.pack(side='left', padx=10)
+
+            self.check_vars.append(var)
+
+        self.create_button.pack(anchor=tk.SW, padx=10, pady=10)
+
+    # --- Create baggage and return selected players ---
+    def create_baggage(self):
+        selected_names = [
+            self.roster.iloc[i]['name']
+            for i, var in enumerate(self.check_vars)
+            if var.get()
+        ]
+
+        # Send result back to CheckInFrame
+        baggage, idxs = hf.create_baggage(selected_names, self.roster)
+        self.parent.baggages.append(baggage)
+        self.parent.baggage_idxs.extend(idxs)
+
+        # Close window
         self.master.destroy()
