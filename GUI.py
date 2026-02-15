@@ -294,9 +294,10 @@ class BaggageFrame(ttk.Frame):
         self.parent = master.master
 
         # --- Build player_roster dataframe ---
-        self.roster = self.parent.roster_df[
-            ~self.parent.roster_df.index.isin(self.parent.baggage_idxs)
-            ].copy()
+        roster = self.parent.roster_df.copy()
+        present_mask = [var.get() for var in self.parent.check_buttons]
+        filtered_roster = roster[present_mask]
+        self.roster = filtered_roster[~filtered_roster.index.isin(self.parent.baggage_idxs)].copy()
 
         # Storage for checkbox variables
         self.check_vars = []
@@ -354,7 +355,7 @@ class BaggageFrame(ttk.Frame):
         ]
 
         # Send result back to CheckInFrame
-        baggage, idxs = hf.create_baggage(selected_names, self.roster)
+        baggage, idxs = hf.create_baggage(selected_names, self.parent.roster_df)
         self.parent.baggages.append(baggage)
         self.parent.baggage_idxs.extend(idxs)
 
