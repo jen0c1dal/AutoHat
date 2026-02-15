@@ -185,13 +185,14 @@ def balance_teams(teams: List[PlayerGroup], m_roster: List[Player], f_roster: Li
             min_num_fmp = min([f.num_fmp for f in teams])
     max_players = max([n.num_players for n in teams])
     min_players = min([n.num_players for n in teams])
-    while min_players < max_players and (m_roster or f_roster):
+    while min_players < max_players and len(m_roster) > 0:
         for t in teams:
             if t.num_players < max_players:
                 if t.mean_rank > mean_rank:
                     t.add_players(pop_random_player(m_roster, math.ceil(len(m_roster) / 2), len(m_roster) - 1))
                 else:
                     t.add_players(pop_random_player(m_roster, 0, math.floor(len(m_roster) / 2)))
+            min_players = min([n.num_players for n in teams])
 
 
 # Add players one by one to build a dataframe of drop-in players. Only rank is enumerated,
