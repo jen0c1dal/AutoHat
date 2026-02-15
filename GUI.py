@@ -233,7 +233,9 @@ class CheckInFrame(ttk.Frame):
     def draw_teams(self):
         try:
             present_mask = [var.get() for var in self.check_buttons]
-            filtered_df = self.roster_df[present_mask].reset_index(drop=True)
+            filtered_df = self.roster_df[present_mask]
+            if len(self.baggages) > 0:
+                filtered_df = filtered_df.drop(index=self.baggage_idxs).reset_index(drop=True)
             hf.generate_teams(filtered_df, self.save_dir, self.num_teams.get(), self.baggages)
             messagebox.showinfo('hat empty', 'Teams spreadsheet created')
         except (IndexError, KeyError, ValueError):
