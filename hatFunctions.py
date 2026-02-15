@@ -99,7 +99,7 @@ class PlayerGroup:
             player = roster.loc[roster['name'] == p].iloc[0].copy()
             name, gender, rank = player['name'], player['gender'], player['rank']
             group.append(Player(name, Gender(gender), rank))
-            player_idxs.append(roster.index[roster['name'] == p])
+            player_idxs.append(roster.index[roster['name'] == p][0])
         return group, player_idxs
     
     # Add a player to an already existing group
