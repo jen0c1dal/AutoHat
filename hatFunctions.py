@@ -272,7 +272,7 @@ def generate_teams(raw_data: pd.DataFrame, save_directory: str, num_teams: int, 
     with pd.ExcelWriter(save_path, engine='xlsxwriter') as writer:
         offset = 0
         for team in final_teams:
-            team.to_excel(writer, sheet_name='Sheet1', startrow=offset, index=False)
+            team.to_excel(writer, startrow=offset, index=False)
             offset += len(team) + 4
 
 
@@ -281,6 +281,63 @@ def export_players(player_data: pd.DataFrame, save_directory: str):
     timestamp = dt.datetime.now().strftime('%m-%d-%Y_%H-%M-%S')
     save_path = os.path.join(save_directory, f'players_{timestamp}.xlsx')
     with pd.ExcelWriter(save_path, engine='xlsxwriter') as writer:
-        offset = 0
-        player_data.to_excel(writer, sheet_name='Sheet1', startrow=offset, index=False)
+        player_data.to_excel(writer, index=False)
+
+
+def load_exported_players(filepath: str) -> pd.DataFrame:
+    """Load a previously-exported players .xlsx file.
+
+    Normalizes the `name` column (stripping whitespace and title-casing) when present.
+    """
+
+    # Prefer openpyxl for modern xlsx files
+    df = pd.read_excel(filepath, engine='openpyxl')
+
+    # Normalize name column
+    df['name'] = df['name'].astype(str).str.strip()
+
+    # Apply consistent formatting for matching
+    df['__match_name'] = df['name'].str.lower().str.replace(r"\s+", " ", regex=True).str.strip()
+
+    return df
+
+
+def get_attendance_indices(roster_df: pd.DataFrame, exported_df: pd.DataFrame, key: str = 'name') -> tuple[list[int], list[str]]:
+    """Return a list of indices in `roster_df` that match any name in `exported_df`.
+
+    Matching is case- and whitespace-insensitive and uses the `name` column by default.
+    Returns (indices, unmatched_exported_names).
+    """
+    if roster_df is None or exported_df is None:
+        return [], []
+
+    # Prepare match keys
+    roster_match = roster_df.copy()
+    if key in roster_match.columns:
+        roster_match['__match_name'] = roster_match[key].astype(str).str.lower().str.replace(r"\s+", " ", regex=True).str.strip()
+    else:
+        roster_match['__match_name'] = roster_match.index.map(lambda i: '')
+
+    if '__match_name' not in exported_df.columns and key in exported_df.columns:
+        exported_df['__match_name'] = exported_df[key].astype(str).str.lower().str.replace(r"\s+", " ", regex=True).str.strip()
+
+    exported_set = set(exported_df['__match_name'].dropna().unique())
+
+    indices = [int(i) for i, val in enumerate(roster_match['__match_name']) if val in exported_set]
+
+    matched_names = set([roster_match.loc[i, '__match_name'] for i in indices])
+    unmatched = [n for n in exported_set if n not in matched_names]
+
+    # Return original dataframe indices (not positional) — map positional indexes to df.index
+    original_indices = [int(roster_df.index[i]) for i in indices]
+
+    return original_indices, [n for n in unmatched]
+
+
+def apply_attendance_column(roster_df: pd.DataFrame, indices: list[int], column_name: str = 'attended') -> pd.DataFrame:
+    """Add or update a boolean attendance column on `roster_df` marking provided indices True."""
+    if column_name not in roster_df.columns:
+        roster_df[column_name] = False
+    roster_df.loc[indices, column_name] = True
+    return roster_df
         

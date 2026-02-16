@@ -118,6 +118,7 @@ class CheckInFrame(ttk.Frame):
         self.add_baggage_button = ttk.Button(self, text='Add Baggage', command=self.add_baggage)
 
         self.export_players_button = ttk.Button(self, text='Export Players', command=self.export_players)
+        self.load_exported_button = ttk.Button(self, text='Load Exported Players', command=self.load_exported_players)
 
         # Create a canvas to hold the contents of the frame
         self.canvas = tk.Canvas(self)
@@ -155,6 +156,7 @@ class CheckInFrame(ttk.Frame):
         self.count_players.pack(anchor=tk.E, padx=10, pady=5)
         self.drop_in_button.pack(anchor=tk.W, padx=10, pady=5)
         self.add_baggage_button.pack(anchor=tk.W, padx=10, pady=5)
+        self.load_exported_button.pack(anchor=tk.E, padx=10, pady=5)
         self.export_players_button.pack(anchor=tk.E, padx=10, pady=5)
         
     # Function to update the count of players that are checked in, which will display automatically
@@ -247,6 +249,42 @@ class CheckInFrame(ttk.Frame):
         filtered_df = self.roster_df[present_mask].reset_index(drop=True)
         hf.export_players(filtered_df, self.save_dir)
         messagebox.showinfo('Success', 'Player sheet exported successfully')
+
+
+    def load_exported_players(self):
+        file_path = filedialog.askopenfilename(
+            title='Select exported players file',
+            filetypes=(('Excel files', '*.xlsx'), ('All files', '*.*'))
+        )
+        if not file_path:
+            return
+
+        try:
+            exported_df = hf.load_exported_players(file_path)
+        except Exception as e:
+            messagebox.showinfo('Error', f'Unable to read exported players file:\n{e}')
+            return
+        if exported_df is None or exported_df.empty:
+            messagebox.showinfo('Error', 'Exported players file was empty or malformed')
+            return
+
+        indices, unmatched = hf.get_attendance_indices(self.roster_df, exported_df, 'name')
+
+        # Convert original dataframe indices to positional indices expected by refresh_player_list
+        positional = []
+        for idx in indices:
+            try:
+                pos = list(self.roster_df.index).index(idx)
+            except ValueError:
+                continue
+            positional.append(pos)
+
+        self.refresh_player_list(prechecked_indices=positional)
+
+        if len(unmatched) > 0:
+            messagebox.showinfo('Load Complete', f'Loaded exported players. {len(indices)} matched, {len(unmatched)} unmatched.')
+        else:
+            messagebox.showinfo('Load Complete', f'Loaded exported players. {len(indices)} matched.')
 
 
 # Frame to allow a drop-in player to be manually added to the roster. Accessed from the Check-in frame
