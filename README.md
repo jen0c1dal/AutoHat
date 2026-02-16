@@ -15,7 +15,7 @@ AutoHat is a small toolkit for managing ultimate frisbee league check-ins and ge
 Install dependencies (example):
 
 ```powershell
-python -m pip install pandas numpy xlsxwriter
+python -m pip install -r requirements.txt
 ```
 
 **Quick Usage**
