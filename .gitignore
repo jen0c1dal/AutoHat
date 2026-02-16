@@ -3,3 +3,5 @@ teams/
 test_file.ipynb
 # Don't know what this file is, I didn't add it. May be tied to jupyter notebook file
 settings.json
+venv/
+*.egg*

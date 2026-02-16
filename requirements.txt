@@ -1,0 +1,3 @@
+pandas>=1.1
+numpy>=1.19
+XlsxWriter>=3.0
