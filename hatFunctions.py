@@ -101,7 +101,7 @@ class Player:
 
 class PlayerGroup:
     """Class to baggage multiple players together"""
-    def __init__(self, players: list[str] = None, roster: pd.DataFrame = None):
+    def __init__(self, players: list[str] | None = None, roster: pd.DataFrame | None = None):
         """Initialize a player group"""
 
         if players is None:
@@ -145,7 +145,7 @@ class PlayerGroup:
         return self.mean_rank < other.mean_rank
 
 
-def import_roster(filepath):
+def import_roster(filepath: str) -> pd.DataFrame:
     """Import roster from CSV file"""
     df = pd.read_csv(filepath)
     df['throws'] = df['throws'].apply(skill_match, args=(Throws,))
