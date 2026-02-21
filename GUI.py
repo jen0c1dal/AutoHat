@@ -78,6 +78,7 @@ class FileFrame(ttk.Frame):
         """Browse and select the input file"""
         self.file_path = filedialog.askopenfilename(
             title='Select a file',
+            initialdir='AutoHat\\player_input',
             filetypes=(('All files', '*.*'),)
         )
         if self.file_path:
@@ -85,7 +86,7 @@ class FileFrame(ttk.Frame):
 
     def get_save_dir(self):
         """Browse and select the save directory"""
-        self.save_dir = filedialog.askdirectory(title='Select a Folder')
+        self.save_dir = filedialog.askdirectory(title='Select a Folder', initialdir='AutoHat\\teams')
         if self.save_dir:
             self.save_dir_path.config(text=self.save_dir)
 
