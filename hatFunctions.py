@@ -93,9 +93,9 @@ class Player:
         """Convert player to dictionary"""
 
         return {
-            'Name': self.name,
-            'Gender': self.gender.value,
-            'Rank': self.rank,
+            'name': self.name,
+            'gender': self.gender.value,
+            'rank': self.rank,
         }
 
 
@@ -245,12 +245,16 @@ def create_baggage(players: list[str], roster: pd.DataFrame) -> tuple[PlayerGrou
     return baggage, baggage.player_idxs
 
 
+def create_players(df: pd.DataFrame) -> list[Player]:
+    """Create a list of Player objects from a dataframe"""
+    return [Player(name, Gender(gender), rank) for name, gender, rank in zip(df['name'], df['gender'], df['rank'])]
+
+
 # Main function to generate a given number of teams teams from the list of checked in players
-def generate_teams(raw_data: pd.DataFrame, save_directory: str, num_teams: int, baggages: list[PlayerGroup]):
+def generate_teams(players: list[Player], save_directory: str, num_teams: int, baggages: list[PlayerGroup]):
     teams = []
     for _ in range(num_teams):
         teams.append(PlayerGroup())
-    players = [Player(name, Gender(gender), rank) for name, gender, rank in zip(raw_data['name'], raw_data['gender'], raw_data['rank'])]
     mean_rank = calc_mean_rank(players)
 
     # Split the roster into rosters of men and women
@@ -281,7 +285,7 @@ def generate_teams(raw_data: pd.DataFrame, save_directory: str, num_teams: int, 
     # total number of players
     if len(baggages) > 0:
         baggages.sort(reverse=True)
-        mean_rank += sum(t.mean_rank for t in teams) / num_teams
+        mean_rank = sum(t.mean_rank for t in teams) / num_teams
         add_baggages_to_teams(teams, baggages, mean_rank)
         balance_teams(teams, men, women, mean_rank)
 

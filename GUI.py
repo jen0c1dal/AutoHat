@@ -256,7 +256,8 @@ class CheckInFrame(ttk.Frame):
             filtered_df = self.roster_df[present_mask]
             if len(self.baggages) > 0:
                 filtered_df = filtered_df.drop(index=self.baggage_idxs).reset_index(drop=True)
-            hf.generate_teams(filtered_df, self.save_dir, self.num_teams.get(), self.baggages)
+            players = hf.create_players(filtered_df)
+            hf.generate_teams(players, self.save_dir, self.num_teams.get(), self.baggages)
             messagebox.showinfo('hat empty', 'Teams spreadsheet created')
         except (IndexError, KeyError, ValueError):
             messagebox.showinfo('Error', 'Not enough players checked in')
