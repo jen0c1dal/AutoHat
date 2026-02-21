@@ -1,5 +1,5 @@
-from setuptools import setup
 from pathlib import Path
+from setuptools import setup
 
 README = Path(__file__).parent / "README.md"
 long_description = README.read_text(encoding='utf-8') if README.exists() else ''

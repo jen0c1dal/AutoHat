@@ -158,7 +158,7 @@ class CheckInFrame(ttk.Frame):
         self.add_baggage_button.pack(anchor=tk.W, padx=10, pady=5)
         self.load_exported_button.pack(anchor=tk.E, padx=10, pady=5)
         self.export_players_button.pack(anchor=tk.E, padx=10, pady=5)
-        
+ 
     # Function to update the count of players that are checked in, which will display automatically
     def update_player_count(self):
         num_players = sum(1 for here in self.check_buttons if here.get())
@@ -193,7 +193,7 @@ class CheckInFrame(ttk.Frame):
         self.check_buttons.clear()
 
         # --- Rebuild list ---
-        for i, (_, row) in enumerate(self.roster_df.iterrows()):
+        for i, row in self.roster_df.iterrows():
             name = row['name']
 
             frame = ttk.Frame(self.canvas_frame)
@@ -281,10 +281,7 @@ class CheckInFrame(ttk.Frame):
 
         self.refresh_player_list(prechecked_indices=positional)
 
-        if len(unmatched) > 0:
-            messagebox.showinfo('Load Complete', f'Loaded exported players. {len(indices)} matched, {len(unmatched)} unmatched.')
-        else:
-            messagebox.showinfo('Load Complete', f'Loaded exported players. {len(indices)} matched.')
+        messagebox.showinfo('Load Complete', f'Loaded exported players. {len(indices)} matched, {len(unmatched)} unmatched.')
 
 
 # Frame to allow a drop-in player to be manually added to the roster. Accessed from the Check-in frame

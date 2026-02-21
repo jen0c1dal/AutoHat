@@ -66,7 +66,7 @@ class Player:
         self.rank = rank
 
     def __lt__(self, other) -> bool:
-         return self.rank < other.rank
+        return self.rank < other.rank
 
     def to_dict(self) -> dict:
         return {
@@ -76,33 +76,36 @@ class Player:
         }
 
 
-# Class to baggage multiple players together
 class PlayerGroup:
+    """Class to baggage multiple players together"""
     def __init__(self, players: list[str] = None, roster: pd.DataFrame = None):
         if players is None:
             self.players = []
             self.player_idxs = []
             self.mean_rank = 0.0
             self.num_fmp = 0
-        else:
-            self.players, self.player_idxs = self.create_group(players, roster)
-            self.mean_rank = calc_mean_rank(self.players)
-            self.num_fmp = len([p for p in self.players if p.gender == Gender.FEMALE])
+            self.num_players = 0
+            return
+
+        self.players, self.player_idxs = self.create_group(players, roster)
+        self.mean_rank = calc_mean_rank(self.players)
+        self.num_fmp = len([p for p in self.players if p.gender == Gender.FEMALE])
         self.num_players = len(self.players)
 
-    # Create a group (list of player objects) from a list of player names and the active roster
+
     def create_group(self, players: list[str], roster: pd.DataFrame):
+        """Returns a list of Player objects and the associated list of indeces"""
         group = []
         player_idxs = []
         for p in players:
             player = roster.loc[roster['name'] == p].iloc[0].copy()
-            name, gender, rank = player['name'], player['gender'], player['rank']
-            group.append(Player(name, Gender(gender), rank))
+            group.append(Player(player['name'], Gender(player['gender']), player['rank']))
             player_idxs.append(roster.index[roster['name'] == p][0])
         return group, player_idxs
-    
-    # Add a player to an already existing group
+
+
     def add_players(self, players: Player):
+        """Add a player or a list of players to the group"""
         if isinstance(players, Player):
             self.players.append(players)
         else:
@@ -147,7 +150,7 @@ def assign_players(mean_rank: float, roster: list[Player], teams: list[PlayerGro
             player = pop_random_player(roster, 0, math.floor(len(roster) / 2))
         teams[team_index].add_players(player)
         team_index = (team_index + 1) % num_teams
-    
+
     return team_index
 
 
@@ -157,23 +160,20 @@ def pop_random_player(roster: list[Player], begin: int, end: int) -> Player:
     return roster.pop(rd.randint(begin, end))
 
 
-# Function to add baggages to teams from the list of baggages
 def add_baggages_to_teams(teams: list[PlayerGroup], baggages: list[PlayerGroup], mean_rank:float):
+    """Function to add baggages to teams from the list of baggages"""
     while len(baggages) > 0:
         for t in teams:
             if len(baggages) > 0:
-                if t.mean_rank > mean_rank:
-                    baggage = baggages.pop()
-                else:
-                    baggage = baggages.pop(0)
+                baggage = baggages.pop() if t.mean_rank > mean_rank else baggages.pop(0)
                 t.add_players(baggage.players)
-       
+
 
 # Function to balance the number of women and total players on a team, in that order. Function stops execution
 # once all teams have an equal number of both women and men
 def balance_teams(teams: list[PlayerGroup], m_roster: list[Player], f_roster: list[Player], mean_rank: float):
-    max_num_fmp = max([f.num_fmp for f in teams])
-    min_num_fmp = min([f.num_fmp for f in teams])
+    max_num_fmp = max(f.num_fmp for f in teams)
+    min_num_fmp = min(f.num_fmp for f in teams)
     while min_num_fmp < max_num_fmp and len(f_roster) > 0:
         for t in teams:
             if t.num_fmp < max_num_fmp:
@@ -181,9 +181,9 @@ def balance_teams(teams: list[PlayerGroup], m_roster: list[Player], f_roster: li
                     t.add_players(pop_random_player(f_roster, math.ceil(len(f_roster) / 2), len(f_roster) - 1))
                 else:
                     t.add_players(pop_random_player(f_roster, 0, math.floor(len(f_roster) / 2)))
-            min_num_fmp = min([f.num_fmp for f in teams])
-    max_players = max([n.num_players for n in teams])
-    min_players = min([n.num_players for n in teams])
+            min_num_fmp = min(f.num_fmp for f in teams)
+    max_players = max(n.num_players for n in teams)
+    min_players = min(n.num_players for n in teams)
     while min_players < max_players and len(m_roster) > 0:
         for t in teams:
             if t.num_players < max_players:
@@ -191,16 +191,22 @@ def balance_teams(teams: list[PlayerGroup], m_roster: list[Player], f_roster: li
                     t.add_players(pop_random_player(m_roster, math.ceil(len(m_roster) / 2), len(m_roster) - 1))
                 else:
                     t.add_players(pop_random_player(m_roster, 0, math.floor(len(m_roster) / 2)))
-            min_players = min([n.num_players for n in teams])
+            min_players = min(n.num_players for n in teams)
 
 
 # Add players one by one to build a dataframe of drop-in players. Only rank is enumerated,
 # all other scores are given a value of NaN to indicate that the value isn't known
 def add_drop_in(name: str, gender: str, rank: str) -> pd.DataFrame:
-    drop_in_player = {'name': [name.title()], 'gender': [gender],
-                      'throws': [np.nan], 'experience': [np.nan],
-                      'endurance': [np.nan], 'athleticism': [np.nan], 'rank': [int(rank)]}
-    
+    drop_in_player = {
+        'name': [name.title()],
+        'gender': [gender],
+        'throws': [np.nan],
+        'experience': [np.nan],
+        'endurance': [np.nan],
+        'athleticism': [np.nan],
+        'rank': [int(rank)],
+    }
+
     return pd.DataFrame(drop_in_player)
 
 
@@ -227,7 +233,7 @@ def generate_teams(raw_data: pd.DataFrame, save_directory: str, num_teams: int, 
     men.sort(reverse=True)
     women.sort(reverse=True)
 
-    if len(men) > 0:    
+    if len(men) > 0:
         # Add a top-ranked player to each team from the men's roster
         for t in teams:
             t.add_players(men.pop(0))
@@ -238,7 +244,7 @@ def generate_teams(raw_data: pd.DataFrame, save_directory: str, num_teams: int, 
     else:
         # Add a top-ranked player to each team from the women's roster
         for t in teams:
-            teams.add_players(women.pop(0))
+            t.add_players(women.pop(0))
 
         # Add a random player to each team from the women's roster
         for i in range(num_teams):
@@ -248,7 +254,7 @@ def generate_teams(raw_data: pd.DataFrame, save_directory: str, num_teams: int, 
     # total number of players
     if len(baggages) > 0:
         baggages.sort(reverse=True)
-        mean_rank += sum([t.mean_rank for t in teams])/num_teams
+        mean_rank += sum(t.mean_rank for t in teams) / num_teams
         add_baggages_to_teams(teams, baggages, mean_rank)
         balance_teams(teams, men, women, mean_rank)
 
@@ -276,8 +282,8 @@ def generate_teams(raw_data: pd.DataFrame, save_directory: str, num_teams: int, 
             offset += len(team) + 4
 
 
-# Function to export the drop in and registered player data to allow for reusability and troubleshooting
 def export_players(player_data: pd.DataFrame, save_directory: str):
+    """Export the player data to an .xlsx file in the specified directory"""
     timestamp = dt.datetime.now().strftime('%m-%d-%Y_%H-%M-%S')
     save_path = os.path.join(save_directory, f'players_{timestamp}.xlsx')
     with pd.ExcelWriter(save_path, engine='xlsxwriter') as writer:
@@ -325,7 +331,7 @@ def get_attendance_indices(roster_df: pd.DataFrame, exported_df: pd.DataFrame, k
 
     indices = [int(i) for i, val in enumerate(roster_match['__match_name']) if val in exported_set]
 
-    matched_names = set([roster_match.loc[i, '__match_name'] for i in indices])
+    matched_names = set(roster_match.loc[i, '__match_name'] for i in indices)
     unmatched = [n for n in exported_set if n not in matched_names]
 
     # Return original dataframe indices (not positional) — map positional indexes to df.index
@@ -340,4 +346,3 @@ def apply_attendance_column(roster_df: pd.DataFrame, indices: list[int], column_
         roster_df[column_name] = False
     roster_df.loc[indices, column_name] = True
     return roster_df
-        
