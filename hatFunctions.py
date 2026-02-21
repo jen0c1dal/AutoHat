@@ -200,28 +200,24 @@ def add_baggages_to_teams(teams: list[PlayerGroup], baggages: list[PlayerGroup],
                 t.add_players(baggage.players)
 
 
+def balance_attribute(teams: list[PlayerGroup], roster: list[Player], mean_rank: float, get_attr):
+    """Helper function to balance teams based on a given attribute"""
+    max_attr = max(get_attr(t) for t in teams)
+    min_attr = min(get_attr(t) for t in teams)
+    while min_attr < max_attr and len(roster) > 0:
+        for t in teams:
+            if get_attr(t) < max_attr:
+                if t.mean_rank > mean_rank:
+                    t.add_players(pop_random_player(roster, math.ceil(len(roster) / 2), len(roster) - 1))
+                else:
+                    t.add_players(pop_random_player(roster, 0, math.floor(len(roster) / 2)))
+            min_attr = min(get_attr(t) for t in teams)
+
+
 def balance_teams(teams: list[PlayerGroup], m_roster: list[Player], f_roster: list[Player], mean_rank: float):
     """Balance teams by gender and player count"""
-    max_num_fmp = max(f.num_fmp for f in teams)
-    min_num_fmp = min(f.num_fmp for f in teams)
-    while min_num_fmp < max_num_fmp and len(f_roster) > 0:
-        for t in teams:
-            if t.num_fmp < max_num_fmp:
-                if t.mean_rank > mean_rank:
-                    t.add_players(pop_random_player(f_roster, math.ceil(len(f_roster) / 2), len(f_roster) - 1))
-                else:
-                    t.add_players(pop_random_player(f_roster, 0, math.floor(len(f_roster) / 2)))
-            min_num_fmp = min(f.num_fmp for f in teams)
-    max_players = max(n.num_players for n in teams)
-    min_players = min(n.num_players for n in teams)
-    while min_players < max_players and len(m_roster) > 0:
-        for t in teams:
-            if t.num_players < max_players:
-                if t.mean_rank > mean_rank:
-                    t.add_players(pop_random_player(m_roster, math.ceil(len(m_roster) / 2), len(m_roster) - 1))
-                else:
-                    t.add_players(pop_random_player(m_roster, 0, math.floor(len(m_roster) / 2)))
-            min_players = min(n.num_players for n in teams)
+    balance_attribute(teams, f_roster, mean_rank, lambda t: t.num_fmp)
+    balance_attribute(teams, m_roster, mean_rank, lambda t: t.num_players)
 
 
 # Add players one by one to build a dataframe of drop-in players. Only rank is enumerated,
