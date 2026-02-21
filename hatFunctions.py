@@ -13,17 +13,25 @@ import numpy as np
 
 
 class Gender(Enum):
+    """Enum for player gender"""
+
     MALE = 'male'
     FEMALE = 'female'
 
 
 class SkillLevel:
+    """Class representing a skill level with level and text"""
+
     def __init__(self, level: int, text: str):
+        """Initialize a skill level"""
+
         self.level = level
         self.text = text
 
 
 class Throws(Enum):
+    """Enum for throwing skill levels"""
+
     NOOB = SkillLevel(1, "I've thrown a frisbee before.")
     COMPETENT = SkillLevel(2, "I can throw a forehand and backhand, even if they're occasionally wobbly.")
     PRO = SkillLevel(3, "Accurate with standard throws; I know what IO and OI mean.")
@@ -31,6 +39,8 @@ class Throws(Enum):
 
 
 class Experience(Enum):
+    """Enum for experience skill levels"""
+
     ROOKIE = SkillLevel(1, "Rookie")
     PICKUP = SkillLevel(2, "Pickup player")
     CLUB = SkillLevel(3, "Club (Sectionals) / Masters (Nationals) / High School (State / Nationals)")
@@ -38,6 +48,8 @@ class Experience(Enum):
 
 
 class Endurance(Enum):
+    """Enum for endurance skill levels"""
+
     BACKUP = SkillLevel(1, "I like to rest for a few points in between the points that I play.")
     LINE = SkillLevel(2, "I can play about every other point at full speed.")
     ANCHOR = SkillLevel(3, "I can play a few points in a row at full speed before I need a rest.")
@@ -45,6 +57,8 @@ class Endurance(Enum):
 
 
 class Athletics(Enum):
+    """Enum for athleticism skill levels"""
+
     UNFIT = SkillLevel(1, "Out of shape; mostly I'm here to heckle.")
     FIT = SkillLevel(2, "Somewhat athletic; I can usually get open when I make a cut.")
     FAST = SkillLevel(3, "Quite athletic; I have no difficulty getting open when I make cuts.")
@@ -52,6 +66,7 @@ class Athletics(Enum):
 
 
 def skill_match(text: str, enum_type) -> Enum:
+    """Match text to enum value"""
     for enum in enum_type:
         if enum.value.text == text:
             return enum.value.level
@@ -60,15 +75,23 @@ def skill_match(text: str, enum_type) -> Enum:
 
 
 class Player:
+    """Class representing a player"""
+
     def __init__(self, name: str, gender: Gender, rank: int):
+        """Initialize a player"""
+
         self.name = name
         self.gender = gender
         self.rank = rank
 
     def __lt__(self, other) -> bool:
+        """Compare players by rank"""
+
         return self.rank < other.rank
 
     def to_dict(self) -> dict:
+        """Convert player to dictionary"""
+
         return {
             'Name': self.name,
             'Gender': self.gender.value,
@@ -79,6 +102,8 @@ class Player:
 class PlayerGroup:
     """Class to baggage multiple players together"""
     def __init__(self, players: list[str] = None, roster: pd.DataFrame = None):
+        """Initialize a player group"""
+
         if players is None:
             self.players = []
             self.player_idxs = []
@@ -94,7 +119,7 @@ class PlayerGroup:
 
 
     def create_group(self, players: list[str], roster: pd.DataFrame):
-        """Returns a list of Player objects and the associated list of indeces"""
+        """Create a group of players from names and roster"""
         group = []
         player_idxs = []
         for p in players:
@@ -105,7 +130,7 @@ class PlayerGroup:
 
 
     def add_players(self, players: Player):
-        """Add a player or a list of players to the group"""
+        """Add players to the group"""
         if isinstance(players, Player):
             self.players.append(players)
         else:
@@ -114,12 +139,14 @@ class PlayerGroup:
         self.mean_rank = calc_mean_rank(self.players)
         self.num_players = len(self.players)
 
-    # Sort on rank
     def __lt__(self, other) -> bool:
+        """Compare groups by mean rank"""
+
         return self.mean_rank < other.mean_rank
 
 
 def import_roster(filepath):
+    """Import roster from CSV file"""
     df = pd.read_csv(filepath)
     df['throws'] = df['throws'].apply(skill_match, args=(Throws,))
     df['experience'] = df['experience'].apply(skill_match, args=(Experience,))
@@ -132,6 +159,7 @@ def import_roster(filepath):
 
 
 def launch_checkin(data_in_path):
+    """Launch check-in by importing and sorting roster"""
     raw_data = import_roster(data_in_path)
     raw_data.sort_values(by=['name'], ascending=True, inplace=True)
     raw_data.reset_index(drop=True, inplace=True)
@@ -139,10 +167,12 @@ def launch_checkin(data_in_path):
 
 
 def calc_mean_rank(roster: list[Player]) -> int:
+    """Calculate mean rank of players"""
     return sum(p.rank for p in roster) / len(roster)
 
 
 def assign_players(mean_rank: float, roster: list[Player], teams: list[PlayerGroup], num_teams: int, team_index: int = 0) -> int:
+    """Assign players to teams based on rank"""
     while len(roster) > 0:
         if teams[team_index].mean_rank > mean_rank:
             player = pop_random_player(roster, math.ceil(len(roster) / 2), len(roster) - 1)
@@ -155,13 +185,14 @@ def assign_players(mean_rank: float, roster: list[Player], teams: list[PlayerGro
 
 
 def pop_random_player(roster: list[Player], begin: int, end: int) -> Player:
+    """Pop a random player from roster within range"""
     if len(roster) == 1:
         return roster.pop(0)
     return roster.pop(rd.randint(begin, end))
 
 
 def add_baggages_to_teams(teams: list[PlayerGroup], baggages: list[PlayerGroup], mean_rank:float):
-    """Function to add baggages to teams from the list of baggages"""
+    """Add baggages to teams"""
     while len(baggages) > 0:
         for t in teams:
             if len(baggages) > 0:
@@ -169,9 +200,8 @@ def add_baggages_to_teams(teams: list[PlayerGroup], baggages: list[PlayerGroup],
                 t.add_players(baggage.players)
 
 
-# Function to balance the number of women and total players on a team, in that order. Function stops execution
-# once all teams have an equal number of both women and men
 def balance_teams(teams: list[PlayerGroup], m_roster: list[Player], f_roster: list[Player], mean_rank: float):
+    """Balance teams by gender and player count"""
     max_num_fmp = max(f.num_fmp for f in teams)
     min_num_fmp = min(f.num_fmp for f in teams)
     while min_num_fmp < max_num_fmp and len(f_roster) > 0:
@@ -197,6 +227,7 @@ def balance_teams(teams: list[PlayerGroup], m_roster: list[Player], f_roster: li
 # Add players one by one to build a dataframe of drop-in players. Only rank is enumerated,
 # all other scores are given a value of NaN to indicate that the value isn't known
 def add_drop_in(name: str, gender: str, rank: str) -> pd.DataFrame:
+    """Add drop-in player to roster"""
     drop_in_player = {
         'name': [name.title()],
         'gender': [gender],
@@ -283,7 +314,7 @@ def generate_teams(raw_data: pd.DataFrame, save_directory: str, num_teams: int, 
 
 
 def export_players(player_data: pd.DataFrame, save_directory: str):
-    """Export the player data to an .xlsx file in the specified directory"""
+    """Export player data to Excel"""
     timestamp = dt.datetime.now().strftime('%m-%d-%Y_%H-%M-%S')
     save_path = os.path.join(save_directory, f'players_{timestamp}.xlsx')
     with pd.ExcelWriter(save_path, engine='xlsxwriter') as writer:
@@ -291,7 +322,7 @@ def export_players(player_data: pd.DataFrame, save_directory: str):
 
 
 def load_exported_players(filepath: str) -> pd.DataFrame:
-    """Load a previously-exported players .xlsx file.
+    """Load a previously-exported players .xlsx file
 
     Normalizes the `name` column (stripping whitespace and title-casing) when present.
     """
@@ -341,7 +372,7 @@ def get_attendance_indices(roster_df: pd.DataFrame, exported_df: pd.DataFrame, k
 
 
 def apply_attendance_column(roster_df: pd.DataFrame, indices: list[int], column_name: str = 'attended') -> pd.DataFrame:
-    """Add or update a boolean attendance column on `roster_df` marking provided indices True."""
+    """Add or update a boolean attendance column on `roster_df` marking provided indices True"""
     if column_name not in roster_df.columns:
         roster_df[column_name] = False
     roster_df.loc[indices, column_name] = True

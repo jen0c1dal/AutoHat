@@ -11,7 +11,10 @@ import hatFunctions as hf
 
 # Main App Class
 class AutoHat(tk.Tk):
+    """Main application class for the AutoHat GUI"""
+
     def __init__(self):
+        """Initialize the main application window"""
 
         # main setup
         super().__init__()
@@ -26,8 +29,8 @@ class AutoHat(tk.Tk):
         # run
         self.mainloop()
 
-    # Method to switch frames and load the check in frame
     def show_checkin_frame(self):
+        """Switch frames and load the check-in frame"""
         if self.file_frame.done:
             self.geometry('500x700')
             self.checkin_frame = CheckInFrame(self, self.file_frame.roster_df, self.file_frame.save_dir)
@@ -35,9 +38,12 @@ class AutoHat(tk.Tk):
             self.file_frame.pack_forget()
 
 
-# Class for frame which lets the user select the input file and save directory
 class FileFrame(ttk.Frame):
+    """Frame for selecting input file and save directory"""
+
     def __init__(self, parent, callback):
+        """Initialize the file selection frame"""
+
         super().__init__(parent)
         self.callback = callback
         self.done = False
@@ -56,8 +62,8 @@ class FileFrame(ttk.Frame):
 
         self.create_layout()
 
-    # Pack the frame
     def create_layout(self):
+        """Pack the frame widgets"""
         self.data_in_label.pack(anchor=tk.W, padx=10, pady=5)
         self.data_in_path.pack(anchor=tk.W, padx=10, pady=5)
         self.data_in_button.pack(anchor=tk.W, padx=10, pady=5)
@@ -68,8 +74,8 @@ class FileFrame(ttk.Frame):
 
         self.check_in_button.pack(anchor=tk.SE, padx=10, pady=5)
 
-    # Function to "Browse" and find the correct input file
     def get_filepath(self):
+        """Browse and select the input file"""
         self.file_path = filedialog.askopenfilename(
             title='Select a file',
             filetypes=(('All files', '*.*'),)
@@ -77,23 +83,25 @@ class FileFrame(ttk.Frame):
         if self.file_path:
             self.data_in_path.config(text=self.file_path)
 
-    # Function to "Browse" and find the correct save directory
     def get_save_dir(self):
+        """Browse and select the save directory"""
         self.save_dir = filedialog.askdirectory(title='Select a Folder')
         if self.save_dir:
             self.save_dir_path.config(text=self.save_dir)
 
-    # Callback function to main app class, switches frames and loads the check in frame
     def check_in(self):
+        """Callback to switch frames and load the check-in frame"""
         self.roster_df = hf.launch_checkin(self.file_path)
         self.done = True
         self.callback()
 
 
-# Class for check in frame which lets the user mark attendance, choose the number of teams to create rosters for, and
-# generate excel spreadsheets which list the randomly shuffled teams
 class CheckInFrame(ttk.Frame):
+    """Frame for check-in, marking attendance, selecting team count, and generating teams"""
+
     def __init__(self, parent, roster_df, save_dir):
+        """Initialize the check-in frame"""
+
         super().__init__(parent)
         self.roster_df = roster_df
         self.save_dir = save_dir
@@ -147,6 +155,8 @@ class CheckInFrame(ttk.Frame):
 
     # Pack the frame
     def create_layout(self):
+        """Pack the frame widgets"""
+
         self.refresh_player_list()
 
         self.num_teams_label.pack(anchor=tk.W, padx=10, pady=5)
@@ -159,13 +169,13 @@ class CheckInFrame(ttk.Frame):
         self.load_exported_button.pack(anchor=tk.E, padx=10, pady=5)
         self.export_players_button.pack(anchor=tk.E, padx=10, pady=5)
  
-    # Function to update the count of players that are checked in, which will display automatically
     def update_player_count(self):
+        """Update the count of checked-in players"""
         num_players = sum(1 for here in self.check_buttons if here.get())
         self.num_players_label.config(text=num_players)
 
-    # Function which updates the drop-in player list. Can be called by the child frame "DropInFrame"
     def update_roster(self, drop_in_df):
+        """Update the roster with drop-in players."""
         start_index = len(self.roster_df)
 
         self.roster_df = pd.concat([self.roster_df, drop_in_df], axis=0, ignore_index=True)
@@ -176,6 +186,7 @@ class CheckInFrame(ttk.Frame):
         self.refresh_player_list(prechecked_indices=new_indices)
 
     def refresh_player_list(self, prechecked_indices=None):
+        """Refresh the player list with checkboxes"""
         if prechecked_indices is None:
             prechecked_indices = []
 
@@ -213,8 +224,8 @@ class CheckInFrame(ttk.Frame):
             self.labels.append(label)
 
 
-    # Function which builds the drop-in frame to allow drop-in players to be added to the roster
     def drop_in(self):
+        """Open the drop-in player addition window"""
         drop_in_window = tk.Toplevel(self)
         drop_in_window.title('Add Drop-in Player')
         drop_in_window.geometry('300x100')
@@ -223,6 +234,7 @@ class CheckInFrame(ttk.Frame):
 
 
     def add_baggage(self):
+        """Open the baggage addition window"""
         baggage_window = tk.Toplevel(self)
         baggage_window.title('Add Baggage')
         baggage_window.geometry('500x700')
@@ -230,9 +242,8 @@ class CheckInFrame(ttk.Frame):
         baggage_frame.pack(fill='both', expand=True)
 
 
-    # Function which discards all rostered players not present, then randomly shuffles teams based on the GUI inputs
-    # and generates an excel sheet with the newly created teams
     def draw_teams(self):
+        """Generate and save shuffled teams to Excel"""
         try:
             present_mask = [var.get() for var in self.check_buttons]
             filtered_df = self.roster_df[present_mask]
@@ -243,8 +254,8 @@ class CheckInFrame(ttk.Frame):
         except (IndexError, KeyError, ValueError):
             messagebox.showinfo('Error', 'Not enough players checked in')
 
-    # Function to generate export a list of all checked in players and drop in players to the save directory
     def export_players(self):
+        """Export checked-in players to Excel"""
         present_mask = [var.get() for var in self.check_buttons]
         filtered_df = self.roster_df[present_mask].reset_index(drop=True)
         hf.export_players(filtered_df, self.save_dir)
@@ -252,6 +263,7 @@ class CheckInFrame(ttk.Frame):
 
 
     def load_exported_players(self):
+        """Load previously exported players and mark as checked-in"""
         file_path = filedialog.askopenfilename(
             title='Select exported players file',
             filetypes=(('Excel files', '*.xlsx'), ('All files', '*.*'))
@@ -284,10 +296,14 @@ class CheckInFrame(ttk.Frame):
         messagebox.showinfo('Load Complete', f'Loaded exported players. {len(indices)} matched, {len(unmatched)} unmatched.')
 
 
-# Frame to allow a drop-in player to be manually added to the roster. Accessed from the Check-in frame
 class DropInFrame(ttk.Frame):
+    """Frame for adding drop-in players"""
+
     def __init__(self, master):
+        """Initialize the drop-in frame"""
+
         super().__init__(master)
+
         self.name = tk.StringVar()
         self.gender = tk.StringVar()
         self.rank = tk.StringVar()
@@ -307,6 +323,8 @@ class DropInFrame(ttk.Frame):
         self.create_layout()
 
     def create_layout(self):
+        """Layout the widgets in the frame"""
+
         self.name_label.grid(row=0, column=0)
         self.name_entry.grid(row=0, column=1, columnspan=2)
         self.gender_label.grid(row=1, column=0)
@@ -317,14 +335,18 @@ class DropInFrame(ttk.Frame):
         self.add_button.grid(row=3, column=1)
 
     def add_player(self):
+        """Add the drop-in player to the roster"""
         drop_in_df = hf.add_drop_in(self.name.get(), self.gender.get(), self.rank.get())
         self.master.master.update_roster(drop_in_df)
         self.master.destroy()
 
 
-# Frame to add PlayerGroup baggages to the baggages list. Accessed from the Check-in Frame
 class BaggageFrame(ttk.Frame):
+    """Frame for adding player groups (baggages)"""
+
     def __init__(self, master):
+        """Initialize the baggage frame"""
+
         super().__init__(master)
 
         # Reference to CheckInFrame
@@ -364,8 +386,8 @@ class BaggageFrame(ttk.Frame):
             )
         )
 
-    # --- Layout ---
     def create_layout(self):
+        """Layout the widgets in the frame"""
         for _, row in self.roster.iterrows():
             name = row['name']
 
@@ -383,8 +405,8 @@ class BaggageFrame(ttk.Frame):
 
         self.create_button.pack(anchor=tk.SW, padx=10, pady=10)
 
-    # --- Create baggage and return selected players ---
     def create_baggage(self):
+        """Create a baggage from selected players"""
         selected_names = [
             self.roster.iloc[i]['name']
             for i, var in enumerate(self.check_vars)
