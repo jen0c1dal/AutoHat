@@ -68,8 +68,8 @@ class Athletics(SkillLevel):
 def skill_match(text: str, enum_type) -> Enum:
     """Match text to enum value"""
     for enum in enum_type:
-        if enum.value.text == text:
-            return enum.value.level
+        if enum.text == text:
+            return enum.level
 
     return 0
 
@@ -150,7 +150,7 @@ def import_roster(filepath: str) -> pd.DataFrame:
     df = pd.read_csv(filepath)
     df['throws'] = df['throws'].apply(skill_match, args=(Throws,))
     df['experience'] = df['experience'].apply(skill_match, args=(Experience,))
-    df['endurance'] = df['endurance'].apply(skill_match, args=((Endurance,)))
+    df['endurance'] = df['endurance'].apply(skill_match, args=(Endurance,))
     df['athleticism'] = df['athleticism'].apply(skill_match, args=(Athletics,))
     df['name'] = df['first_name'] + ' ' + df['last_name']
     df['rank'] = df['throws'] + df['experience'] + df['endurance'] + df['athleticism']
