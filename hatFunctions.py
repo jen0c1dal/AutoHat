@@ -19,7 +19,7 @@ class Gender(Enum):
     FEMALE = 'female'
 
 
-class SkillLevel:
+class SkillLevel(Enum):
     """Class representing a skill level with level and text"""
 
     def __init__(self, level: int, text: str):
@@ -29,40 +29,40 @@ class SkillLevel:
         self.text = text
 
 
-class Throws(Enum):
+class Throws(SkillLevel):
     """Enum for throwing skill levels"""
 
-    NOOB = SkillLevel(1, "I've thrown a frisbee before.")
-    COMPETENT = SkillLevel(2, "I can throw a forehand and backhand, even if they're occasionally wobbly.")
-    PRO = SkillLevel(3, "Accurate with standard throws; I know what IO and OI mean.")
-    SCOOBER_GOD = SkillLevel(4, "All the throws; I will destroy you with my full-field scoobers.")
+    NOOB = (1, "I've thrown a frisbee before.")
+    COMPETENT = (2, "I can throw a forehand and backhand, even if they're occasionally wobbly.")
+    PRO = (3, "Accurate with standard throws; I know what IO and OI mean.")
+    SCOOBER_GOD = (4, "All the throws; I will destroy you with my full-field scoobers.")
 
 
-class Experience(Enum):
+class Experience(SkillLevel):
     """Enum for experience skill levels"""
 
-    ROOKIE = SkillLevel(1, "Rookie")
-    PICKUP = SkillLevel(2, "Pickup player")
-    CLUB = SkillLevel(3, "Club (Sectionals) / Masters (Nationals) / High School (State / Nationals)")
-    PRO = SkillLevel(4, "Club player (Regionals / Nationals)")
+    ROOKIE = (1, "Rookie")
+    PICKUP = (2, "Pickup player")
+    CLUB = (3, "Club (Sectionals) / Masters (Nationals) / High School (State / Nationals)")
+    PRO = (4, "Club player (Regionals / Nationals)")
 
 
-class Endurance(Enum):
+class Endurance(SkillLevel):
     """Enum for endurance skill levels"""
 
-    BACKUP = SkillLevel(1, "I like to rest for a few points in between the points that I play.")
-    LINE = SkillLevel(2, "I can play about every other point at full speed.")
-    ANCHOR = SkillLevel(3, "I can play a few points in a row at full speed before I need a rest.")
-    SAVAGE = SkillLevel(4, "I actually prefer to play savage.")
+    BACKUP = (1, "I like to rest for a few points in between the points that I play.")
+    LINE = (2, "I can play about every other point at full speed.")
+    ANCHOR = (3, "I can play a few points in a row at full speed before I need a rest.")
+    SAVAGE = (4, "I actually prefer to play savage.")
 
 
-class Athletics(Enum):
+class Athletics(SkillLevel):
     """Enum for athleticism skill levels"""
 
-    UNFIT = SkillLevel(1, "Out of shape; mostly I'm here to heckle.")
-    FIT = SkillLevel(2, "Somewhat athletic; I can usually get open when I make a cut.")
-    FAST = SkillLevel(3, "Quite athletic; I have no difficulty getting open when I make cuts.")
-    ELITE = SkillLevel(4, "Very athletic; my two settings are Sprint and Horizontal.")
+    UNFIT = (1, "Out of shape; mostly I'm here to heckle.")
+    FIT = (2, "Somewhat athletic; I can usually get open when I make a cut.")
+    FAST = (3, "Quite athletic; I have no difficulty getting open when I make cuts.")
+    ELITE = (4, "Very athletic; my two settings are Sprint and Horizontal.")
 
 
 def skill_match(text: str, enum_type) -> Enum:
