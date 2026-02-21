@@ -119,7 +119,7 @@ class CheckInFrame(ttk.Frame):
         self.draw_teams_button = ttk.Button(self, text='Draw Teams', command=self.draw_teams)
 
         self.num_players_label = ttk.Label(self, text=0)
-        self.count_players = ttk.Button(self, text='Count Players', command=self.update_player_count)
+        self.num_players_text_label = ttk.Label(self, text='Players Checked In:')
 
         self.drop_in_button = ttk.Button(self, text='Add Drop-in Player', command=self.drop_in)
 
@@ -159,11 +159,13 @@ class CheckInFrame(ttk.Frame):
 
         self.refresh_player_list()
 
+        self.update_player_count()  # Initial count
+
         self.num_teams_label.pack(anchor=tk.W, padx=10, pady=5)
         self.num_teams_menu.pack(anchor=tk.W, padx=10, pady=5)
         self.draw_teams_button.pack(anchor=tk.SW, padx=10, pady=20)
+        self.num_players_text_label.pack(anchor=tk.E, padx=10, pady=5)
         self.num_players_label.pack(anchor=tk.E, padx=10, pady=5)
-        self.count_players.pack(anchor=tk.E, padx=10, pady=5)
         self.drop_in_button.pack(anchor=tk.W, padx=10, pady=5)
         self.add_baggage_button.pack(anchor=tk.W, padx=10, pady=5)
         self.load_exported_button.pack(anchor=tk.E, padx=10, pady=5)
@@ -222,6 +224,10 @@ class CheckInFrame(ttk.Frame):
 
             self.check_buttons.append(var)
             self.labels.append(label)
+
+        # Add trace to update player count automatically
+        for var in self.check_buttons:
+            var.trace_add('write', lambda *args: self.update_player_count())
 
 
     def drop_in(self):
