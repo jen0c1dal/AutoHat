@@ -106,7 +106,6 @@ class CheckInFrame(ttk.Frame):
         self.roster = roster
         self.save_dir = save_dir
         self.baggages = []
-        self.baggage_idxs = []
         self.labels = []
         self.check_buttons = []
 
@@ -416,9 +415,8 @@ class BaggageFrame(ttk.Frame):
         ]
 
         # Send result back to CheckInFrame
-        baggage, idxs = hf.create_baggage(selected_names, self.parent.roster)
+        baggage = hf.create_baggage(selected_names, self.parent.roster)
         self.parent.baggages.append(baggage)
-        self.parent.baggage_idxs.extend(idxs)
 
         # Close window
         self.master.destroy()

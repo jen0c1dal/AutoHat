@@ -116,7 +116,6 @@ class PlayerGroup:
     """Class to baggage multiple players together"""
 
     players: list[Player] = field(default_factory=list)
-    player_idxs: list[int] = field(default_factory=list)
 
     def __post_init__(self):
         if not self.players:
@@ -149,26 +148,21 @@ class PlayerGroup:
     def __init__(self, players: list[Player] | list[str], roster: Roster | None = None, **data):
         if isinstance(players[0], str):
             # From list[str] and roster
-            p, idx = PlayerGroup.create_group(players, roster)
-            self.players = p
-            self.player_idxs = idx
+            self.players = PlayerGroup.create_group(players, roster)
         else:
             # From list[Player]
             self.players = players
-            self.player_idxs = []
         self.__post_init__()
 
     @staticmethod
     def create_group(players: list[str], roster: Roster):
         """Create a group of players from names and roster"""
         group = []
-        player_idxs = []
         for p in players:
             player = roster.get_player_by_name(p)
             if player:
                 group.append(player)
-                player_idxs.append(roster.players.index(player))
-        return group, player_idxs
+        return group
 
 
     def add_players(self, players: Player | list[Player]):
@@ -277,9 +271,8 @@ def add_drop_in(name: str, gender: str, rank: str) -> Player:
     return Player(name=name.title(), gender=Gender(gender), rank=int(rank))
 
 
-def create_baggage(players: list[str], roster: Roster) -> tuple[PlayerGroup, list[int]]:
-    baggage = PlayerGroup(players, roster)
-    return baggage, baggage.player_idxs
+def create_baggage(players: list[str], roster: Roster) -> PlayerGroup:
+    return PlayerGroup(players, roster)
 
 
 def generate_teams(players: list[Player], save_directory: str, num_teams: int, baggages: list[PlayerGroup]):
