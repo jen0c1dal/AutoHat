@@ -10,6 +10,7 @@ import random as rd
 # Third party libraries
 import pandas as pd
 import numpy as np
+from pydantic import BaseModel, field_validator
 
 
 class Gender(Enum):
@@ -74,15 +75,12 @@ def skill_match(text: str, enum_type) -> Enum:
     return 0
 
 
-class Player:
+class Player(BaseModel):
     """Class representing a player"""
 
-    def __init__(self, name: str, gender: Gender, rank: int):
-        """Initialize a player"""
-
-        self.name = name
-        self.gender = gender
-        self.rank = rank
+    name: str
+    gender: Gender
+    rank: int
 
     def __lt__(self, other) -> bool:
         """Compare players by rank"""
@@ -99,42 +97,68 @@ class Player:
         }
 
 
-class PlayerGroup:
+class PlayerGroup(BaseModel):
     """Class to baggage multiple players together"""
-    def __init__(self, players: list[str] | None = None, roster: pd.DataFrame | None = None):
-        """Initialize a player group"""
 
-        if players is None:
-            self.players = []
-            self.player_idxs = []
-            self.mean_rank = 0.0
-            self.num_fmp = 0
-            self.num_players = 0
-            return
+    players: list[Player] = []
+    player_idxs: list[int] = []
+    mean_rank: float = 0.0
+    num_fmp: int = 0
+    num_players: int = 0
 
-        self.players, self.player_idxs = self.create_group(players, roster)
-        self.mean_rank = calc_mean_rank(self.players)
-        self.num_fmp = len([p for p in self.players if p.gender == Gender.FEMALE])
-        self.num_players = len(self.players)
+    model_config = {'arbitrary_types_allowed': True}
 
+    @field_validator('players')
+    @classmethod
+    def validate_players(cls, v):
+        if not v:
+            raise ValueError('PlayerGroup must have at least one player')
+        return v
 
-    def create_group(self, players: list[str], roster: pd.DataFrame):
+    def __init__(self, players: list[Player] | list[str], roster: pd.DataFrame | None = None, **data):
+        if isinstance(players[0], str):
+            # From list[str] and roster
+            p, idx = PlayerGroup.create_group(players, roster)
+            super().__init__(
+                players=p,
+                player_idxs=idx,
+                mean_rank=calc_mean_rank(p),
+                num_fmp=len([pp for pp in p if pp.gender == Gender.FEMALE]),
+                num_players=len(p),
+                **data
+            )
+        else:
+            # From list[Player]
+            p = players
+            super().__init__(
+                players=p,
+                player_idxs=[],
+                mean_rank=calc_mean_rank(p),
+                num_fmp=len([pp for pp in p if pp.gender == Gender.FEMALE]),
+                num_players=len(p),
+                **data
+            )
+
+    @staticmethod
+    def create_group(players: list[str], roster: pd.DataFrame):
         """Create a group of players from names and roster"""
         group = []
         player_idxs = []
         for p in players:
             player = roster.loc[roster['name'] == p].iloc[0].copy()
-            group.append(Player(player['name'], Gender(player['gender']), player['rank']))
+            group.append(Player(name=player['name'], gender=Gender(player['gender']), rank=player['rank']))
             player_idxs.append(roster.index[roster['name'] == p][0])
         return group, player_idxs
 
 
-    def add_players(self, players: Player):
+    def add_players(self, players: Player | list[Player]):
         """Add players to the group"""
         if isinstance(players, Player):
             self.players.append(players)
         else:
             self.players.extend(players)
+        
+        # Recalculate all derived fields with the updated players list
         self.num_fmp = len([p for p in self.players if p.gender == Gender.FEMALE])
         self.mean_rank = calc_mean_rank(self.players)
         self.num_players = len(self.players)
@@ -247,14 +271,11 @@ def create_baggage(players: list[str], roster: pd.DataFrame) -> tuple[PlayerGrou
 
 def create_players(df: pd.DataFrame) -> list[Player]:
     """Create a list of Player objects from a dataframe"""
-    return [Player(name, Gender(gender), rank) for name, gender, rank in zip(df['name'], df['gender'], df['rank'])]
+    return [Player(name=name, gender=Gender(gender), rank=rank) for name, gender, rank in zip(df['name'], df['gender'], df['rank'])]
 
 
-# Main function to generate a given number of teams teams from the list of checked in players
 def generate_teams(players: list[Player], save_directory: str, num_teams: int, baggages: list[PlayerGroup]):
-    teams = []
-    for _ in range(num_teams):
-        teams.append(PlayerGroup())
+    """Main function to generate a given number of teams teams from the list of checked in players"""
     mean_rank = calc_mean_rank(players)
 
     # Split the roster into rosters of men and women
@@ -264,20 +285,16 @@ def generate_teams(players: list[Player], save_directory: str, num_teams: int, b
     men.sort(reverse=True)
     women.sort(reverse=True)
 
-    if len(men) > 0:
-        # Add a top-ranked player to each team from the men's roster
-        for t in teams:
-            t.add_players(men.pop(0))
-
-        # Add a random player to each team from the men's roster
+    if len(men) >= num_teams:
+        # Assign top players to teams
+        teams = [PlayerGroup([men.pop(0)]) for _ in range(num_teams)]
+        # Add random players
         for i in range(num_teams):
             teams[i].add_players(pop_random_player(men, 0, len(men) - 1))
     else:
-        # Add a top-ranked player to each team from the women's roster
-        for t in teams:
-            t.add_players(women.pop(0))
-
-        # Add a random player to each team from the women's roster
+        # Assign top women to teams
+        teams = [PlayerGroup([women.pop(0)]) for _ in range(num_teams)]
+        # Add random players
         for i in range(num_teams):
             teams[i].add_players(pop_random_player(women, 0, len(women) - 1))
 
