@@ -3,7 +3,6 @@
 # Third party libraries
 import tkinter as tk
 from tkinter import filedialog, messagebox, ttk
-import pandas as pd
 
 # Internal libraries
 import hatFunctions as hf
@@ -33,7 +32,7 @@ class AutoHat(tk.Tk):
         """Switch frames and load the check-in frame"""
         if self.file_frame.done:
             self.geometry('500x700')
-            self.checkin_frame = CheckInFrame(self, self.file_frame.roster_df, self.file_frame.save_dir)
+            self.checkin_frame = CheckInFrame(self, self.file_frame.roster, self.file_frame.save_dir)
             self.checkin_frame.pack(padx=5, pady=5, fill='both', expand=True)
             self.file_frame.pack_forget()
 
@@ -49,7 +48,7 @@ class FileFrame(ttk.Frame):
         self.done = False
         self.file_path = ''
         self.save_dir = ''
-        self.roster_df = None
+        self.roster = None
         self.data_in_label = ttk.Label(self, text='Check In Sheet Filepath: ')
         self.data_in_path = ttk.Label(self, text='', padding=5)
         self.data_in_button = ttk.Button(self, text='Browse', command=self.get_filepath)
@@ -92,7 +91,7 @@ class FileFrame(ttk.Frame):
 
     def check_in(self):
         """Callback to switch frames and load the check-in frame"""
-        self.roster_df = hf.launch_checkin(self.file_path)
+        self.roster = hf.launch_checkin(self.file_path)
         self.done = True
         self.callback()
 
@@ -100,11 +99,11 @@ class FileFrame(ttk.Frame):
 class CheckInFrame(ttk.Frame):
     """Frame for check-in, marking attendance, selecting team count, and generating teams"""
 
-    def __init__(self, parent, roster_df, save_dir):
+    def __init__(self, parent, roster, save_dir):
         """Initialize the check-in frame"""
 
         super().__init__(parent)
-        self.roster_df = roster_df
+        self.roster = roster
         self.save_dir = save_dir
         self.baggages = []
         self.baggage_idxs = []
@@ -177,14 +176,14 @@ class CheckInFrame(ttk.Frame):
         num_players = sum(1 for here in self.check_buttons if here.get())
         self.num_players_label.config(text=num_players)
 
-    def update_roster(self, drop_in_df):
+    def update_roster(self, drop_in_player):
         """Update the roster with drop-in players"""
-        start_index = len(self.roster_df)
+        start_index = len(self.roster.players)
 
-        self.roster_df = pd.concat([self.roster_df, drop_in_df], axis=0, ignore_index=True)
+        self.roster.players.append(drop_in_player)
 
         # Automatically check new players
-        new_indices = list(range(start_index, len(self.roster_df)))
+        new_indices = [start_index]
 
         self.refresh_player_list(prechecked_indices=new_indices)
 
@@ -207,8 +206,8 @@ class CheckInFrame(ttk.Frame):
         self.check_buttons.clear()
 
         # --- Rebuild list ---
-        for i, row in self.roster_df.iterrows():
-            name = row['name']
+        for i, player in enumerate(self.roster.players):
+            name = player.name
 
             frame = ttk.Frame(self.canvas_frame)
             frame.pack(fill='x', padx=10, pady=5)
@@ -253,11 +252,11 @@ class CheckInFrame(ttk.Frame):
         """Generate and save shuffled teams to Excel"""
         try:
             present_mask = [var.get() for var in self.check_buttons]
-            filtered_df = self.roster_df[present_mask]
+            filtered_players = [p for p, present in zip(self.roster.players, present_mask) if present]
+            # Remove baggages if any
             if len(self.baggages) > 0:
-                filtered_df = filtered_df.drop(index=self.baggage_idxs).reset_index(drop=True)
-            players = hf.create_players(filtered_df)
-            hf.generate_teams(players, self.save_dir, self.num_teams.get(), self.baggages)
+                filtered_players = [p for p in filtered_players if p not in [bp for bg in self.baggages for bp in bg.players]]
+            hf.generate_teams(filtered_players, self.save_dir, self.num_teams.get(), self.baggages)
             messagebox.showinfo('hat empty', 'Teams spreadsheet created')
         except (IndexError, KeyError, ValueError):
             messagebox.showinfo('Error', 'Not enough players checked in')
@@ -265,8 +264,8 @@ class CheckInFrame(ttk.Frame):
     def export_players(self):
         """Export checked-in players to Excel"""
         present_mask = [var.get() for var in self.check_buttons]
-        filtered_df = self.roster_df[present_mask].reset_index(drop=True)
-        hf.export_players(filtered_df, self.save_dir)
+        filtered_players = [p for p, present in zip(self.roster.players, present_mask) if present]
+        hf.export_players(filtered_players, self.save_dir)
         messagebox.showinfo('Success', 'Player sheet exported successfully')
 
 
@@ -280,26 +279,19 @@ class CheckInFrame(ttk.Frame):
             return
 
         try:
-            exported_df = hf.load_exported_players(file_path)
+            exported_roster = hf.load_exported_players(file_path)
         except Exception as e:
             messagebox.showinfo('Error', f'Unable to read exported players file:\n{e}')
             return
-        if exported_df is None or exported_df.empty:
+        if not exported_roster.players:
             messagebox.showinfo('Error', 'Exported players file was empty or malformed')
             return
 
-        indices, unmatched = hf.get_attendance_indices(self.roster_df, exported_df, 'name')
+        indices, unmatched = hf.get_attendance_indices(self.roster, exported_roster, 'name')
 
-        # Convert original dataframe indices to positional indices expected by refresh_player_list
-        positional = []
-        for idx in indices:
-            try:
-                pos = list(self.roster_df.index).index(idx)
-            except ValueError:
-                continue
-            positional.append(pos)
+        hf.apply_attendance_column(self.roster, indices)
 
-        self.refresh_player_list(prechecked_indices=positional)
+        self.refresh_player_list(prechecked_indices=indices)
 
         messagebox.showinfo('Load Complete', f'Loaded exported players. {len(indices)} matched, {len(unmatched)} unmatched.')
 
@@ -344,8 +336,8 @@ class DropInFrame(ttk.Frame):
 
     def add_player(self):
         """Add the drop-in player to the roster"""
-        drop_in_df = hf.add_drop_in(self.name.get(), self.gender.get(), self.rank.get())
-        self.master.master.update_roster(drop_in_df)
+        drop_in_player = hf.add_drop_in(self.name.get(), self.gender.get(), self.rank.get())
+        self.master.master.update_roster(drop_in_player)
         self.master.master.update_player_count()
         self.master.destroy()
 
@@ -361,11 +353,12 @@ class BaggageFrame(ttk.Frame):
         # Reference to CheckInFrame
         self.parent = master.master
 
-        # --- Build player_roster dataframe ---
-        roster = self.parent.roster_df.copy()
+        # --- Build player_roster list ---
         present_mask = [var.get() for var in self.parent.check_buttons]
-        filtered_roster = roster[present_mask]
-        self.roster = filtered_roster[~filtered_roster.index.isin(self.parent.baggage_idxs)].copy()
+        filtered_players = [p for p, present in zip(self.parent.roster.players, present_mask) if present]
+        # Remove already baggaged players
+        baggaged_players = [bp for bg in self.parent.baggages for bp in bg.players]
+        self.roster = [p for p in filtered_players if p not in baggaged_players]
 
         # Storage for checkbox variables
         self.check_vars = []
@@ -397,8 +390,8 @@ class BaggageFrame(ttk.Frame):
 
     def create_layout(self):
         """Layout the widgets in the frame"""
-        for _, row in self.roster.iterrows():
-            name = row['name']
+        for player in self.roster:
+            name = player.name
 
             frame = ttk.Frame(self.canvas_frame)
             frame.pack(fill='x', padx=10, pady=5)
@@ -417,13 +410,13 @@ class BaggageFrame(ttk.Frame):
     def create_baggage(self):
         """Create a baggage from selected players"""
         selected_names = [
-            self.roster.iloc[i]['name']
+            self.roster[i].name
             for i, var in enumerate(self.check_vars)
             if var.get()
         ]
 
         # Send result back to CheckInFrame
-        baggage, idxs = hf.create_baggage(selected_names, self.parent.roster_df)
+        baggage, idxs = hf.create_baggage(selected_names, self.parent.roster)
         self.parent.baggages.append(baggage)
         self.parent.baggage_idxs.extend(idxs)
 

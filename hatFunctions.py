@@ -1,7 +1,10 @@
 """Backend logic for AutoHat app"""
 
+from __future__ import annotations
+
 # Built in libraries
 import datetime as dt
+from dataclasses import dataclass, field
 from enum import Enum
 import math
 import os
@@ -9,8 +12,7 @@ import random as rd
 
 # Third party libraries
 import pandas as pd
-import numpy as np
-from pydantic import BaseModel, validator
+from openpyxl import Workbook, load_workbook
 
 
 class Gender(Enum):
@@ -75,7 +77,8 @@ def skill_match(text: str, enum_type) -> Enum:
     return 0
 
 
-class Player(BaseModel):
+@dataclass
+class Player:
     """Class representing a player"""
 
     name: str
@@ -97,20 +100,27 @@ class Player(BaseModel):
         }
 
 
-class PlayerGroup(BaseModel):
+@dataclass
+class Roster:
+    players: list[Player]
+
+    def sort_by_name(self):
+        self.players.sort(key=lambda p: p.name)
+
+    def get_player_by_name(self, name: str) -> Player | None:
+        return next((p for p in self.players if p.name == name), None)
+
+
+@dataclass
+class PlayerGroup:
     """Class to baggage multiple players together"""
 
-    players: list[Player] = []
-    player_idxs: list[int] = []
+    players: list[Player] = field(default_factory=list)
+    player_idxs: list[int] = field(default_factory=list)
 
-    model_config = {'arbitrary_types_allowed': True}
-
-    @validator('players')
-    @classmethod
-    def validate_players(cls, v):
-        if not v:
+    def __post_init__(self):
+        if not self.players:
             raise ValueError('PlayerGroup must have at least one player')
-        return v
 
     @staticmethod
     def calc_mean_rank(roster: list[Player]) -> float:
@@ -136,33 +146,28 @@ class PlayerGroup(BaseModel):
     def num_players(self) -> int:
         return len(self.players)
 
-    def __init__(self, players: list[Player] | list[str], roster: pd.DataFrame | None = None, **data):
+    def __init__(self, players: list[Player] | list[str], roster: Roster | None = None, **data):
         if isinstance(players[0], str):
             # From list[str] and roster
             p, idx = PlayerGroup.create_group(players, roster)
-            super().__init__(
-                players=p,
-                player_idxs=idx,
-                **data
-            )
+            self.players = p
+            self.player_idxs = idx
         else:
             # From list[Player]
-            p = players
-            super().__init__(
-                players=p,
-                player_idxs=[],
-                **data
-            )
+            self.players = players
+            self.player_idxs = []
+        self.__post_init__()
 
     @staticmethod
-    def create_group(players: list[str], roster: pd.DataFrame):
+    def create_group(players: list[str], roster: Roster):
         """Create a group of players from names and roster"""
         group = []
         player_idxs = []
         for p in players:
-            player = roster.loc[roster['name'] == p].iloc[0].copy()
-            group.append(Player(name=player['name'], gender=Gender(player['gender']), rank=player['rank']))
-            player_idxs.append(roster.index[roster['name'] == p][0])
+            player = roster.get_player_by_name(p)
+            if player:
+                group.append(player)
+                player_idxs.append(roster.players.index(player))
         return group, player_idxs
 
 
@@ -191,35 +196,31 @@ class Team(PlayerGroup):
         # Initialize as PlayerGroup but skip the string processing
         super().__init__(players, None, **data)
 
-    def to_dataframe(self) -> pd.DataFrame:
-        """Convert the team to a pandas DataFrame for export"""
-        team_df = pd.DataFrame.from_records(p.to_dict() for p in self.players)
-        return team_df
-
     def __str__(self) -> str:
         """String representation of the team"""
         return f"Team: {len(self.players)} players, Avg Rank: {self.mean_rank:.1f}"
 
 
-def import_roster(filepath: str) -> pd.DataFrame:
+def import_roster(filepath: str) -> Roster:
     """Import roster from CSV file"""
     df = pd.read_csv(filepath)
-    df['throws'] = df['throws'].apply(skill_match, args=(Throws,))
-    df['experience'] = df['experience'].apply(skill_match, args=(Experience,))
-    df['endurance'] = df['endurance'].apply(skill_match, args=(Endurance,))
-    df['athleticism'] = df['athleticism'].apply(skill_match, args=(Athletics,))
-    df['name'] = df['first_name'] + ' ' + df['last_name']
-    df['rank'] = df['throws'] + df['experience'] + df['endurance'] + df['athleticism']
-    df.drop(columns=['first_name', 'last_name'], inplace=True)
-    return df
+    players = []
+    for _, row in df.iterrows():
+        throws = skill_match(row['throws'], Throws)
+        experience = skill_match(row['experience'], Experience)
+        endurance = skill_match(row['endurance'], Endurance)
+        athleticism = skill_match(row['athleticism'], Athletics)
+        name = f"{row['first_name']} {row['last_name']}"
+        rank = throws + experience + endurance + athleticism
+        players.append(Player(name=name, gender=Gender(row['gender']), rank=rank))
+    return Roster(players)
 
 
 def launch_checkin(data_in_path):
     """Launch check-in by importing and sorting roster"""
-    raw_data = import_roster(data_in_path)
-    raw_data.sort_values(by=['name'], ascending=True, inplace=True)
-    raw_data.reset_index(drop=True, inplace=True)
-    return raw_data
+    roster = import_roster(data_in_path)
+    roster.sort_by_name()
+    return roster
 
 
 def assign_players(mean_rank: float, roster: list[Player], teams: list[PlayerGroup], num_teams: int, team_index: int = 0) -> int:
@@ -271,34 +272,14 @@ def balance_teams(teams: list[PlayerGroup], m_roster: list[Player], f_roster: li
     balance_attribute(teams, m_roster, mean_rank, lambda t: t.num_players)
 
 
-# Add players one by one to build a dataframe of drop-in players. Only rank is enumerated,
-# all other scores are given a value of NaN to indicate that the value isn't known
-def add_drop_in(name: str, gender: str, rank: str) -> pd.DataFrame:
+def add_drop_in(name: str, gender: str, rank: str) -> Player:
     """Add drop-in player to roster"""
-    drop_in_player = {
-        'name': [name.title()],
-        'gender': [gender],
-        'throws': [np.nan],
-        'experience': [np.nan],
-        'endurance': [np.nan],
-        'athleticism': [np.nan],
-        'rank': [int(rank)],
-    }
-
-    return pd.DataFrame(drop_in_player)
+    return Player(name=name.title(), gender=Gender(gender), rank=int(rank))
 
 
-# Add a baggage object, grouping players internally. Returns both a PlayerGroup object and
-# the associated list of indeces so that players can be dropped from the main roster when
-# it comes time to generate teams
-def create_baggage(players: list[str], roster: pd.DataFrame) -> tuple[PlayerGroup, list[int]]:
+def create_baggage(players: list[str], roster: Roster) -> tuple[PlayerGroup, list[int]]:
     baggage = PlayerGroup(players, roster)
     return baggage, baggage.player_idxs
-
-
-def create_players(df: pd.DataFrame) -> list[Player]:
-    """Create a list of Player objects from a dataframe"""
-    return [Player(name=name, gender=Gender(gender), rank=rank) for name, gender, rank in zip(df['name'], df['gender'], df['rank'])]
 
 
 def generate_teams(players: list[Player], save_directory: str, num_teams: int, baggages: list[PlayerGroup]):
@@ -348,78 +329,73 @@ def generate_teams(players: list[Player], save_directory: str, num_teams: int, b
     timestamp = dt.datetime.now().strftime('%m-%d-%Y_%H-%M-%S')
     save_path = os.path.join(save_directory, f'teams_{timestamp}.xlsx')
 
-    # Write the excel file
-    with pd.ExcelWriter(save_path, engine='xlsxwriter') as writer:
-        offset = 0
-        for team in final_teams:
-            team_df = team.to_dataframe()
-            averages = pd.DataFrame({'Average': [team.mean_rank]})
-            final_team_df = pd.concat([team_df, averages])
-            final_team_df.to_excel(writer, startrow=offset, index=False)
-            offset += len(final_team_df) + 4
+    wb = Workbook()
+    ws = wb.active
+    offset = 0
+    for team in final_teams:
+        team_data = [{'name': 'Name', 'gender': 'Gender', 'rank': 'Rank'}] + [p.to_dict() for p in team.players] + [{'name': 'Average', 'gender': '', 'rank': team.mean_rank}]
+        for row_idx, row in enumerate(team_data, start=offset + 1):
+            for col_idx, (key, value) in enumerate(row.items(), start=1):
+                ws.cell(row=row_idx, column=col_idx, value=value)
+        offset += len(team_data) + 4
+    wb.save(save_path)
 
 
-def export_players(player_data: pd.DataFrame, save_directory: str):
+def export_players(players: list[Player], save_directory: str):
     """Export player data to Excel"""
     timestamp = dt.datetime.now().strftime('%m-%d-%Y_%H-%M-%S')
     save_path = os.path.join(save_directory, f'players_{timestamp}.xlsx')
-    with pd.ExcelWriter(save_path, engine='xlsxwriter') as writer:
-        player_data.to_excel(writer, index=False)
+    wb = Workbook()
+    ws = wb.active
+    data = [{'name': 'Name', 'gender': 'Gender', 'rank': 'Rank'}] + [p.to_dict() for p in players]
+    for row_idx, row in enumerate(data, start=1):
+        for col_idx, (key, value) in enumerate(row.items(), start=1):
+            ws.cell(row=row_idx, column=col_idx, value=value)
+    wb.save(save_path)
 
 
-def load_exported_players(filepath: str) -> pd.DataFrame:
+def load_exported_players(filepath: str) -> Roster:
     """Load a previously-exported players .xlsx file
 
     Normalizes the `name` column (stripping whitespace and title-casing) when present.
     """
 
-    # Prefer openpyxl for modern xlsx files
-    df = pd.read_excel(filepath, engine='openpyxl')
+    wb = load_workbook(filepath)
+    ws = wb.active
+    players = []
+    for row in ws.iter_rows(min_row=2, values_only=True):  # Skip header
+        if row[0]:  # Assuming name is first column
+            name = str(row[0]).strip()
+            gender = Gender(row[1]) if row[1] else Gender.MALE  # Default
+            rank = int(row[2]) if row[2] else 0
+            players.append(Player(name=name, gender=gender, rank=rank))
+    return Roster(players)
 
-    # Normalize name column
-    df['name'] = df['name'].astype(str).str.strip()
 
-    # Apply consistent formatting for matching
-    df['__match_name'] = df['name'].str.lower().str.replace(r"\s+", " ", regex=True).str.strip()
-
-    return df
-
-
-def get_attendance_indices(roster_df: pd.DataFrame, exported_df: pd.DataFrame, key: str = 'name') -> tuple[list[int], list[str]]:
-    """Return a list of indices in `roster_df` that match any name in `exported_df`.
+def get_attendance_indices(roster: Roster, exported: Roster, key: str = 'name') -> tuple[list[int], list[str]]:
+    """Return a list of indices in `roster` that match any name in `exported`.
 
     Matching is case- and whitespace-insensitive and uses the `name` column by default.
     Returns (indices, unmatched_exported_names).
     """
-    if roster_df is None or exported_df is None:
+    if not roster or not exported:
         return [], []
 
-    # Prepare match keys
-    roster_match = roster_df.copy()
-    if key in roster_match.columns:
-        roster_match['__match_name'] = roster_match[key].astype(str).str.lower().str.replace(r"\s+", " ", regex=True).str.strip()
-    else:
-        roster_match['__match_name'] = roster_match.index.map(lambda i: '')
-
-    if '__match_name' not in exported_df.columns and key in exported_df.columns:
-        exported_df['__match_name'] = exported_df[key].astype(str).str.lower().str.replace(r"\s+", " ", regex=True).str.strip()
-
-    exported_set = set(exported_df['__match_name'].dropna().unique())
-
-    indices = [int(i) for i, val in enumerate(roster_match['__match_name']) if val in exported_set]
-
-    matched_names = set(roster_match.loc[i, '__match_name'] for i in indices)
-    unmatched = [n for n in exported_set if n not in matched_names]
-
-    # Return original dataframe indices (not positional) — map positional indexes to df.index
-    original_indices = [int(roster_df.index[i]) for i in indices]
-
-    return original_indices, unmatched
+    roster_names = {p.name.lower().replace(' ', ''): i for i, p in enumerate(roster.players)}
+    matched_indices = []
+    unmatched = []
+    for p in exported.players:
+        match_name = p.name.lower().replace(' ', '')
+        if match_name in roster_names:
+            matched_indices.append(roster_names[match_name])
+        else:
+            unmatched.append(p.name)
+    return matched_indices, unmatched
 
 
-def apply_attendance_column(roster_df: pd.DataFrame, indices: list[int], column_name: str = 'attended') -> pd.DataFrame:
-    """Add or update a boolean attendance column on `roster_df` marking provided indices True"""
-    if column_name not in roster_df.columns:
-        roster_df[column_name] = False
-    roster_df.loc[indices, column_name] = True
-    return roster_df
+def apply_attendance_column(roster: Roster, indices: list[int], column_name: str = 'attended') -> Roster:
+    """Add or update a boolean attendance column on `roster` marking provided indices True"""
+    for i in indices:
+        if i < len(roster.players):
+            setattr(roster.players[i], column_name, True)
+    return roster
