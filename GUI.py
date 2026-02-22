@@ -178,7 +178,7 @@ class CheckInFrame(ttk.Frame):
         self.num_players_label.config(text=num_players)
 
     def update_roster(self, drop_in_df):
-        """Update the roster with drop-in players."""
+        """Update the roster with drop-in players"""
         start_index = len(self.roster_df)
 
         self.roster_df = pd.concat([self.roster_df, drop_in_df], axis=0, ignore_index=True)
@@ -346,6 +346,7 @@ class DropInFrame(ttk.Frame):
         """Add the drop-in player to the roster"""
         drop_in_df = hf.add_drop_in(self.name.get(), self.gender.get(), self.rank.get())
         self.master.master.update_roster(drop_in_df)
+        self.master.master.update_player_count()
         self.master.destroy()
 
 
