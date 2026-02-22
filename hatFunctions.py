@@ -10,7 +10,7 @@ import random as rd
 # Third party libraries
 import pandas as pd
 import numpy as np
-from pydantic import BaseModel, field_validator
+from pydantic import BaseModel, validator
 
 
 class Gender(Enum):
@@ -102,18 +102,27 @@ class PlayerGroup(BaseModel):
 
     players: list[Player] = []
     player_idxs: list[int] = []
-    mean_rank: float = 0.0
-    num_fmp: int = 0
-    num_players: int = 0
 
     model_config = {'arbitrary_types_allowed': True}
 
-    @field_validator('players')
+    @validator('players')
     @classmethod
     def validate_players(cls, v):
         if not v:
             raise ValueError('PlayerGroup must have at least one player')
         return v
+
+    @property
+    def mean_rank(self) -> float:
+        return calc_mean_rank(self.players)
+
+    @property
+    def num_fmp(self) -> int:
+        return len([pp for pp in self.players if pp.gender == Gender.FEMALE])
+
+    @property
+    def num_players(self) -> int:
+        return len(self.players)
 
     def __init__(self, players: list[Player] | list[str], roster: pd.DataFrame | None = None, **data):
         if isinstance(players[0], str):
@@ -122,9 +131,6 @@ class PlayerGroup(BaseModel):
             super().__init__(
                 players=p,
                 player_idxs=idx,
-                mean_rank=calc_mean_rank(p),
-                num_fmp=len([pp for pp in p if pp.gender == Gender.FEMALE]),
-                num_players=len(p),
                 **data
             )
         else:
@@ -133,9 +139,6 @@ class PlayerGroup(BaseModel):
             super().__init__(
                 players=p,
                 player_idxs=[],
-                mean_rank=calc_mean_rank(p),
-                num_fmp=len([pp for pp in p if pp.gender == Gender.FEMALE]),
-                num_players=len(p),
                 **data
             )
 
@@ -157,11 +160,6 @@ class PlayerGroup(BaseModel):
             self.players.append(players)
         else:
             self.players.extend(players)
-        
-        # Recalculate all derived fields with the updated players list
-        self.num_fmp = len([p for p in self.players if p.gender == Gender.FEMALE])
-        self.mean_rank = calc_mean_rank(self.players)
-        self.num_players = len(self.players)
 
     def __lt__(self, other) -> bool:
         """Compare groups by mean rank"""
