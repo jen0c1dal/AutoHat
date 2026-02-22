@@ -250,8 +250,7 @@ class CheckInFrame(ttk.Frame):
     def draw_teams(self):
         """Generate and save shuffled teams to Excel"""
         try:
-            present_mask = [var.get() for var in self.check_buttons]
-            filtered_players = [p for p, present in zip(self.roster.players, present_mask) if present]
+            filtered_players = [player for player, check_button in zip(self.roster.players, self.check_buttons) if check_button.get()]
             # Remove baggages if any
             if len(self.baggages) > 0:
                 filtered_players = [p for p in filtered_players if p not in [bp for bg in self.baggages for bp in bg.players]]
@@ -262,9 +261,8 @@ class CheckInFrame(ttk.Frame):
 
     def export_players(self):
         """Export checked-in players to Excel"""
-        present_mask = [var.get() for var in self.check_buttons]
-        filtered_players = [p for p, present in zip(self.roster.players, present_mask) if present]
-        hf.export_players(filtered_players, self.save_dir)
+        filtered_players = [player for player, check_button in zip(self.roster.players, self.check_buttons) if check_button.get()]
+        hf.export_players(hf.Roster(filtered_players), self.save_dir)
         messagebox.showinfo('Success', 'Player sheet exported successfully')
 
 
@@ -353,8 +351,7 @@ class BaggageFrame(ttk.Frame):
         self.parent = master.master
 
         # --- Build player_roster list ---
-        present_mask = [var.get() for var in self.parent.check_buttons]
-        filtered_players = [p for p, present in zip(self.parent.roster.players, present_mask) if present]
+        filtered_players = [player for player, check_button in zip(self.parent.roster.players, self.parent.check_buttons) if check_button.get()]
         # Remove already baggaged players
         baggaged_players = [bp for bg in self.parent.baggages for bp in bg.players]
         self.roster = [p for p in filtered_players if p not in baggaged_players]

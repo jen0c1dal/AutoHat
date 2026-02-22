@@ -110,6 +110,10 @@ class Roster:
     def get_player_by_name(self, name: str) -> Player | None:
         return next((p for p in self.players if p.name == name), None)
 
+    def to_excel_rows(self) -> list[dict]:
+        """Return rows for Excel export including header"""
+        return [{'name': 'Name', 'gender': 'Gender', 'rank': 'Rank'}] + [p.to_dict() for p in self.players]
+
 
 @dataclass
 class PlayerGroup:
@@ -189,6 +193,10 @@ class Team(PlayerGroup):
     def __init__(self, players: list[Player], **data):
         # Initialize as PlayerGroup but skip the string processing
         super().__init__(players, None, **data)
+
+    def to_excel_rows(self) -> list[dict]:
+        """Return rows for Excel export including header and average"""
+        return [{'name': 'Name', 'gender': 'Gender', 'rank': 'Rank'}] + [p.to_dict() for p in self.players] + [{'name': 'Average', 'gender': '', 'rank': self.mean_rank}]
 
     def __str__(self) -> str:
         """String representation of the team"""
@@ -326,7 +334,7 @@ def generate_teams(players: list[Player], save_directory: str, num_teams: int, b
     ws = wb.active
     offset = 0
     for team in final_teams:
-        team_data = [{'name': 'Name', 'gender': 'Gender', 'rank': 'Rank'}] + [p.to_dict() for p in team.players] + [{'name': 'Average', 'gender': '', 'rank': team.mean_rank}]
+        team_data = team.to_excel_rows()
         for row_idx, row in enumerate(team_data, start=offset + 1):
             for col_idx, (key, value) in enumerate(row.items(), start=1):
                 ws.cell(row=row_idx, column=col_idx, value=value)
@@ -334,14 +342,13 @@ def generate_teams(players: list[Player], save_directory: str, num_teams: int, b
     wb.save(save_path)
 
 
-def export_players(players: list[Player], save_directory: str):
+def export_players(roster: Roster, save_directory: str):
     """Export player data to Excel"""
     timestamp = dt.datetime.now().strftime('%m-%d-%Y_%H-%M-%S')
     save_path = os.path.join(save_directory, f'players_{timestamp}.xlsx')
     wb = Workbook()
     ws = wb.active
-    data = [{'name': 'Name', 'gender': 'Gender', 'rank': 'Rank'}] + [p.to_dict() for p in players]
-    for row_idx, row in enumerate(data, start=1):
+    for row_idx, row in enumerate(roster.to_excel_rows(), start=1):
         for col_idx, (key, value) in enumerate(row.items(), start=1):
             ws.cell(row=row_idx, column=col_idx, value=value)
     wb.save(save_path)
