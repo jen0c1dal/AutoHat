@@ -112,13 +112,25 @@ class PlayerGroup(BaseModel):
             raise ValueError('PlayerGroup must have at least one player')
         return v
 
+    @staticmethod
+    def calc_mean_rank(roster: list[Player]) -> float:
+        """Calculate mean rank of players"""
+        return sum(p.rank for p in roster) / len(roster)
+
     @property
     def mean_rank(self) -> float:
-        return calc_mean_rank(self.players)
+        """Get the mean rank of the players in the group"""
+        return self.calc_mean_rank(self.players)
 
     @property
     def num_fmp(self) -> int:
-        return len([pp for pp in self.players if pp.gender == Gender.FEMALE])
+        """Get the number of female players on the team"""
+        return len([p for p in self.players if p.gender == Gender.FEMALE])
+
+    @property
+    def num_mmp(self) -> int:
+        """Get the number of male players on the team"""
+        return len([p for p in self.players if p.gender == Gender.MALE])
 
     @property
     def num_players(self) -> int:
@@ -161,54 +173,23 @@ class PlayerGroup(BaseModel):
         else:
             self.players.extend(players)
 
+    def remove_player(self, player: Player):
+        """Remove a player from the group"""
+        if player in self.players:
+            self.players.remove(player)
+
     def __lt__(self, other) -> bool:
         """Compare groups by mean rank"""
 
         return self.mean_rank < other.mean_rank
 
 
-class Team(BaseModel):
+class Team(PlayerGroup):
     """Class representing a finalized team with players"""
 
-    players: list[Player] = []
-
-    model_config = {'arbitrary_types_allowed': True}
-
-    @validator('players')
-    @classmethod
-    def validate_players(cls, v):
-        if not v:
-            raise ValueError('Team must have at least one player')
-        return v
-
-    @property
-    def average_rank(self) -> float:
-        """Calculate the average rank of all players on the team"""
-        return calc_mean_rank(self.players)
-
-    @property
-    def num_players(self) -> int:
-        """Get the total number of players on the team"""
-        return len(self.players)
-
-    @property
-    def num_female_players(self) -> int:
-        """Get the number of female players on the team"""
-        return len([p for p in self.players if p.gender == Gender.FEMALE])
-
-    @property
-    def num_male_players(self) -> int:
-        """Get the number of male players on the team"""
-        return len([p for p in self.players if p.gender == Gender.MALE])
-
-    def add_player(self, player: Player):
-        """Add a single player to the team"""
-        self.players.append(player)
-
-    def remove_player(self, player: Player):
-        """Remove a player from the team"""
-        if player in self.players:
-            self.players.remove(player)
+    def __init__(self, players: list[Player], **data):
+        # Initialize as PlayerGroup but skip the string processing
+        super().__init__(players, None, **data)
 
     def to_dataframe(self) -> pd.DataFrame:
         """Convert the team to a pandas DataFrame for export"""
@@ -217,7 +198,7 @@ class Team(BaseModel):
 
     def __str__(self) -> str:
         """String representation of the team"""
-        return f"Team: {len(self.players)} players, Avg Rank: {self.average_rank:.1f}"
+        return f"Team: {len(self.players)} players, Avg Rank: {self.mean_rank:.1f}"
 
 
 def import_roster(filepath: str) -> pd.DataFrame:
@@ -239,11 +220,6 @@ def launch_checkin(data_in_path):
     raw_data.sort_values(by=['name'], ascending=True, inplace=True)
     raw_data.reset_index(drop=True, inplace=True)
     return raw_data
-
-
-def calc_mean_rank(roster: list[Player]) -> int:
-    """Calculate mean rank of players"""
-    return sum(p.rank for p in roster) / len(roster)
 
 
 def assign_players(mean_rank: float, roster: list[Player], teams: list[PlayerGroup], num_teams: int, team_index: int = 0) -> int:
@@ -327,7 +303,7 @@ def create_players(df: pd.DataFrame) -> list[Player]:
 
 def generate_teams(players: list[Player], save_directory: str, num_teams: int, baggages: list[PlayerGroup]):
     """Main function to generate a given number of teams teams from the list of checked in players"""
-    mean_rank = calc_mean_rank(players)
+    mean_rank = PlayerGroup.calc_mean_rank(players)
 
     # Split the roster into rosters of men and women
     men = [p for p in players if p.gender == Gender.MALE]
@@ -366,7 +342,7 @@ def generate_teams(players: list[Player], save_directory: str, num_teams: int, b
     # Convert PlayerGroups to Team objects
     final_teams = []
     for player_group in teams:
-        final_teams.append(Team(players=player_group.players.copy()))
+        final_teams.append(Team(player_group.players.copy()))
 
     # Export teams to Excel
     timestamp = dt.datetime.now().strftime('%m-%d-%Y_%H-%M-%S')
@@ -377,7 +353,7 @@ def generate_teams(players: list[Player], save_directory: str, num_teams: int, b
         offset = 0
         for team in final_teams:
             team_df = team.to_dataframe()
-            averages = pd.DataFrame({'Average': [team.average_rank]})
+            averages = pd.DataFrame({'Average': [team.mean_rank]})
             final_team_df = pd.concat([team_df, averages])
             final_team_df.to_excel(writer, startrow=offset, index=False)
             offset += len(final_team_df) + 4
