@@ -167,6 +167,59 @@ class PlayerGroup(BaseModel):
         return self.mean_rank < other.mean_rank
 
 
+class Team(BaseModel):
+    """Class representing a finalized team with players"""
+
+    players: list[Player] = []
+
+    model_config = {'arbitrary_types_allowed': True}
+
+    @validator('players')
+    @classmethod
+    def validate_players(cls, v):
+        if not v:
+            raise ValueError('Team must have at least one player')
+        return v
+
+    @property
+    def average_rank(self) -> float:
+        """Calculate the average rank of all players on the team"""
+        return calc_mean_rank(self.players)
+
+    @property
+    def num_players(self) -> int:
+        """Get the total number of players on the team"""
+        return len(self.players)
+
+    @property
+    def num_female_players(self) -> int:
+        """Get the number of female players on the team"""
+        return len([p for p in self.players if p.gender == Gender.FEMALE])
+
+    @property
+    def num_male_players(self) -> int:
+        """Get the number of male players on the team"""
+        return len([p for p in self.players if p.gender == Gender.MALE])
+
+    def add_player(self, player: Player):
+        """Add a single player to the team"""
+        self.players.append(player)
+
+    def remove_player(self, player: Player):
+        """Remove a player from the team"""
+        if player in self.players:
+            self.players.remove(player)
+
+    def to_dataframe(self) -> pd.DataFrame:
+        """Convert the team to a pandas DataFrame for export"""
+        team_df = pd.DataFrame.from_records(p.to_dict() for p in self.players)
+        return team_df
+
+    def __str__(self) -> str:
+        """String representation of the team"""
+        return f"Team: {len(self.players)} players, Avg Rank: {self.average_rank:.1f}"
+
+
 def import_roster(filepath: str) -> pd.DataFrame:
     """Import roster from CSV file"""
     df = pd.read_csv(filepath)
@@ -310,13 +363,12 @@ def generate_teams(players: list[Player], save_directory: str, num_teams: int, b
     # Add female players to the teams based on how team rankings compare to the average rank
     team_index = assign_players(mean_rank, women, teams, num_teams, team_index)
 
-    # Add a row that averages the rank to include in the output
+    # Convert PlayerGroups to Team objects
     final_teams = []
-    for team in teams:
-        team_df = pd.DataFrame.from_records(p.to_dict() for p in team.players)
-        averages = pd.DataFrame({'Average': [team.mean_rank]})
-        final_teams.append(pd.concat([team_df, averages]))
+    for player_group in teams:
+        final_teams.append(Team(players=player_group.players.copy()))
 
+    # Export teams to Excel
     timestamp = dt.datetime.now().strftime('%m-%d-%Y_%H-%M-%S')
     save_path = os.path.join(save_directory, f'teams_{timestamp}.xlsx')
 
@@ -324,8 +376,11 @@ def generate_teams(players: list[Player], save_directory: str, num_teams: int, b
     with pd.ExcelWriter(save_path, engine='xlsxwriter') as writer:
         offset = 0
         for team in final_teams:
-            team.to_excel(writer, startrow=offset, index=False)
-            offset += len(team) + 4
+            team_df = team.to_dataframe()
+            averages = pd.DataFrame({'Average': [team.average_rank]})
+            final_team_df = pd.concat([team_df, averages])
+            final_team_df.to_excel(writer, startrow=offset, index=False)
+            offset += len(final_team_df) + 4
 
 
 def export_players(player_data: pd.DataFrame, save_directory: str):
@@ -383,7 +438,7 @@ def get_attendance_indices(roster_df: pd.DataFrame, exported_df: pd.DataFrame, k
     # Return original dataframe indices (not positional) — map positional indexes to df.index
     original_indices = [int(roster_df.index[i]) for i in indices]
 
-    return original_indices, [n for n in unmatched]
+    return original_indices, unmatched
 
 
 def apply_attendance_column(roster_df: pd.DataFrame, indices: list[int], column_name: str = 'attended') -> pd.DataFrame:
