@@ -11,9 +11,11 @@ setup(
     long_description=long_description,
     py_modules=['GUI', 'main', 'hatFunctions'],
     install_requires=[
-        'pandas>=1.1',
         'numpy>=1.19',
-        'openpyxl>=3.1.5',
+        'openpyxl>=3.0',
+        'pandas>=1.1',
+        'pydantic>=1.0',
+        'pylint>=2.0',
         'XlsxWriter>=3.0'
     ],
     python_requires='>=3.8',
