@@ -31,7 +31,7 @@ class AutoHat(tk.Tk):
     def show_checkin_frame(self):
         """Switch frames and load the check-in frame"""
         if self.file_frame.done:
-            self.geometry('500x700')
+            self.geometry('600x800')
             self.checkin_frame = CheckInFrame(self, self.file_frame.roster, self.file_frame.save_dir)
             self.checkin_frame.pack(padx=5, pady=5, fill='both', expand=True)
             self.file_frame.pack_forget()
@@ -109,11 +109,18 @@ class CheckInFrame(ttk.Frame):
         self.labels = []
         self.check_buttons = []
 
+        self.buttons_frame =ttk.Frame(self)
+        self.buttons_left = ttk.Frame(self.buttons_frame)
+        self.buttons_right = ttk.Frame(self.buttons_frame)
+
+        self.info_frame = ttk.Frame(self)
+        self.left_info = ttk.Frame(self.info_frame)
+        self.right_info = ttk.Frame(self.info_frame)
+
         self.num_teams_label = ttk.Label(self, text='Number of Teams: ')
-        self.options = [2, 2, 3, 4, 5, 6, 7, 8]
+        self.options = [2, 3, 4, 5, 6, 7, 8]
         self.num_teams = tk.IntVar()
-        self.num_teams.set(self.options[0])
-        self.num_teams_menu = ttk.OptionMenu(self, self.num_teams, *self.options)
+        self.num_teams_menu = ttk.OptionMenu(self, self.num_teams, self.options[0], *self.options)
 
         self.draw_teams_button = ttk.Button(self, text='Draw Teams', command=self.draw_teams)
 
@@ -160,16 +167,29 @@ class CheckInFrame(ttk.Frame):
 
         self.update_player_count()  # Initial count
 
-        self.num_teams_label.pack(anchor=tk.W, padx=10, pady=5)
-        self.num_teams_menu.pack(anchor=tk.W, padx=10, pady=5)
-        self.draw_teams_button.pack(anchor=tk.SW, padx=10, pady=20)
-        self.num_players_text_label.pack(anchor=tk.E, padx=10, pady=5)
-        self.num_players_label.pack(anchor=tk.E, padx=10, pady=5)
-        self.drop_in_button.pack(anchor=tk.W, padx=10, pady=5)
-        self.add_baggage_button.pack(anchor=tk.W, padx=10, pady=5)
-        self.load_exported_button.pack(anchor=tk.E, padx=10, pady=5)
-        self.export_players_button.pack(anchor=tk.E, padx=10, pady=5)
- 
+        self.buttons_frame.pack(side='top', fill='x')
+        self.buttons_left.pack(side='left', padx=10, pady=5)
+        self.buttons_right.pack(side='right', padx=10, pady=5)
+
+        self.info_frame.pack(side='top', fill='x')
+        self.left_info.pack(side='left', padx=10, pady=5)
+        self.right_info.pack(side='right', padx=10, pady=5)
+
+        self.draw_teams_button.pack(in_=self.buttons_left, side='left', padx=5)
+        self.drop_in_button.pack(in_=self.buttons_left, side='left', padx=5)
+        self.add_baggage_button.pack(in_=self.buttons_left, side='left', padx=5)
+
+        self.export_players_button.pack(in_=self.buttons_right, side='right', padx=5)
+        self.load_exported_button.pack(in_=self.buttons_right, side='right', padx=5)
+
+
+        self.num_teams_label.pack(in_=self.left_info, side='left', padx=5)
+        self.num_teams_menu.pack(in_=self.left_info, side='left', padx=5)
+
+        self.num_players_label.pack(in_=self.right_info, side='right', padx=5)
+        self.num_players_text_label.pack(in_=self.right_info, side='right', padx=5)
+
+
     def update_player_count(self):
         """Update the count of checked-in players"""
         num_players = sum(1 for here in self.check_buttons if here.get())
