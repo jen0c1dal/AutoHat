@@ -140,6 +140,8 @@ class CheckInFrame(ttk.Frame):
         # Create a vertical scrollbar for the canvas
         self.scrollbar = ttk.Scrollbar(self, orient='vertical', command=self.canvas.yview)
         self.canvas.configure(yscrollcommand=self.scrollbar.set)
+        self.canvas.bind("<Enter>", lambda e: self.canvas.bind_all("<MouseWheel>", self._on_mousewheel))
+        self.canvas.bind("<Leave>", lambda e: self.canvas.unbind_all("<MouseWheel>"))
 
         # Create a frame inside the canvas that will contain the labels and checkbuttons
         self.canvas_frame = ttk.Frame(self.canvas)
@@ -188,6 +190,9 @@ class CheckInFrame(ttk.Frame):
 
         self.num_players_label.pack(in_=self.right_info, side='right', padx=5)
         self.num_players_text_label.pack(in_=self.right_info, side='right', padx=5)
+
+    def _on_mousewheel(self, event):
+        self.canvas.yview_scroll(int(-1 * (event.delta / 120)), "units")
 
 
     def update_player_count(self):
@@ -278,6 +283,7 @@ class CheckInFrame(ttk.Frame):
             messagebox.showinfo('hat empty', 'Teams spreadsheet created')
         except (IndexError, KeyError, ValueError):
             messagebox.showinfo('Error', 'Not enough players checked in')
+
 
     def export_players(self):
         """Export checked-in players to Excel"""
@@ -386,6 +392,8 @@ class BaggageFrame(ttk.Frame):
         self.canvas = tk.Canvas(self)
         self.scrollbar = ttk.Scrollbar(self, orient='vertical', command=self.canvas.yview)
         self.canvas.configure(yscrollcommand=self.scrollbar.set)
+        self.canvas.bind("<Enter>", lambda e: self.canvas.bind_all("<MouseWheel>", self._on_mousewheel))
+        self.canvas.bind("<Leave>", lambda e: self.canvas.unbind_all("<MouseWheel>"))
 
         self.canvas_frame = ttk.Frame(self.canvas)
 
@@ -422,6 +430,9 @@ class BaggageFrame(ttk.Frame):
             self.check_vars.append(var)
 
         self.create_button.pack(anchor=tk.SW, padx=10, pady=10)
+
+    def _on_mousewheel(self, event):
+        self.canvas.yview_scroll(int(-1 * (event.delta / 120)), "units")
 
     def create_baggage(self):
         """Create a baggage from selected players"""
